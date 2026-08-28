@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prescription Kiosk - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault Kiosk</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="/staff/helpdesk" class="nav-link"><i class="ri-customer-service-2-fill"></i> Staff Help Desk</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="page-wrapper">
+        <div class="page-container" style="max-width: 640px;">
+            <div class="page-header">
+                <div class="page-header-icon"><i class="ri-computer-fill"></i></div>
+                <h1>Self-service prescription kiosk</h1>
+                <p>Appointment ID is not enough. A mobile verification code is required.</p>
+            </div>
+            {% if error %}
+            <div class="alert-message alert-danger"><i class="ri-error-warning-fill"></i> {{ error }}</div>
+            {% endif %}
+            {% if message %}
+            <div class="alert-message alert-success"><i class="ri-checkbox-circle-fill"></i> {{ message }}</div>
+            {% endif %}
+
+            {% if prescription %}
+            <div class="prescription-letterhead">
+                <h2><i class="ri-hospital-fill"></i> {{ prescription.hospital_name }}</h2>
+                <p>{{ prescription.appointment_id }} · Ref {{ prescription.prescription_ref }}</p>
+                {% if prescription.is_expired %}
+                <div class="expired-lock">
+                    <h2><i class="ri-time-fill"></i> Time of Usage Completed</h2>
+                    <p>Prescribed duration has expired. Please visit your doctor again for a fresh consultation.</p>
+                </div>
+                {% else %}
+                <table class="rx-table">
+                    <thead>
+                        <tr><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>How to Use</th><th>Days</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in prescription.medicine_list %}
+                        <tr>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.dosage }}</td>
+                            <td>{{ item.frequency }}</td>
+                            <td>{{ item.instructions }}</td>
+                            <td>{{ item.days }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+                <button class="btn no-print" type="button" onclick="window.print()"><i class="ri-printer-fill"></i> Print</button>
+            </div>
+            {% elif step == 'otp' %}
+            <form class="form-card" method="POST" action="/kiosk/verify">
+                <input type="hidden" name="appointment_id" value="{{ appointment_id }}">
+                <input type="hidden" name="mobile" value="{{ mobile }}">
+                <div class="form-group">
+                    <label><i class="ri-shield-keyhole-fill"></i> Verification code</label>
+                    <input name="otp" class="form-control" required maxlength="6">
+                </div>
+                <button class="btn btn-block" type="submit"><i class="ri-file-text-fill"></i> Show prescription</button>
+            </form>
+            {% else %}
+            <form class="form-card" method="POST" action="/kiosk/otp">
+                <div class="form-group">
+                    <label><i class="ri-hashtag"></i> Appointment ID</label>
+                    <input name="appointment_id" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="ri-phone-fill"></i> Registered mobile number</label>
+                    <input name="mobile" class="form-control" required>
+                </div>
+                <button class="btn btn-block" type="submit"><i class="ri-send-plane-fill"></i> Send verification code</button>
+            </form>
+            <p class="muted"><i class="ri-information-fill"></i> No mobile phone? Ask reception to use the hospital help desk with your hospital token.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

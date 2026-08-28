@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Admin - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo"><div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div><span>Hospital Admin</span></a>
+            <ul class="nav-links">
+                <li><a href="/staff/helpdesk" class="nav-link"><i class="ri-customer-service-2-fill"></i> Help Desk</a></li>
+                <li><a href="/staff/logout" class="nav-link"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="page-wrapper">
+        <div class="page-container">
+            <div class="page-header" style="text-align:left; margin-bottom:1.5rem;">
+                <h1><i class="ri-settings-5-fill" style="color:var(--primary);"></i> Manage doctors and reception staff</h1>
+                <p class="muted">{{ current_staff.hospital_name or 'All hospitals' }}</p>
+            </div>
+
+            <div class="form-card">
+                <h3 class="section-title"><i class="ri-user-add-fill"></i> Add reception / help desk user</h3>
+                <form method="POST" action="/admin/hospital/staff">
+                    <div class="form-group"><label>Username</label><input name="username" class="form-control" required></div>
+                    <div class="form-group"><label>Full name</label><input name="full_name" class="form-control" required></div>
+                    <div class="form-group"><label>Password</label><input type="password" name="password" class="form-control" required></div>
+                    <button class="btn" type="submit"><i class="ri-user-add-fill"></i> Create staff account</button>
+                </form>
+            </div>
+
+            <div class="summary-card">
+                <h3 class="section-title"><i class="ri-stethoscope-line"></i> Doctors</h3>
+                {% for d in doctors %}
+                <div class="details-row">
+                    <span>{{ d.name }} · {{ d.specialty }} · {{ d.medical_number }}</span>
+                    <form method="POST" action="/admin/hospital/doctor-status">
+                        <input type="hidden" name="doctor_id" value="{{ d.id }}">
+                        <input type="hidden" name="is_active" value="{{ 0 if d.is_active else 1 }}">
+                        <button class="btn btn-secondary" type="submit">{{ 'Deactivate' if d.is_active else 'Activate' }}</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="summary-card">
+                <h3 class="section-title"><i class="ri-team-fill"></i> Authorized staff</h3>
+                {% for s in staff_users %}
+                <div class="details-row"><span>{{ s.username }} · {{ s.full_name }}</span><span>{{ s.hospital_name }}</span></div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        document.querySelectorAll('a[href="/staff/logout"]').forEach((link) => {
+            link.addEventListener("click", async (event) => {
+                event.preventDefault();
+                try {
+                    if (window.RxVaultOffline) {
+                        await window.RxVaultOffline.clearAll();
+                    }
+                } catch (err) {}
+                window.location.href = "/staff/logout";
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prescription Saved - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault Portal</span>
+            </a>
+            <div class="system-status">
+                <span class="status-dot"></span> Logged in: {{ current_doctor.name }}
+            </div>
+            <ul class="nav-links">
+                <li><a href="/" class="nav-link"><i class="ri-home-4-line"></i> Home</a></li>
+                <li><a href="/doctor" class="nav-link nav-btn"><i class="ri-user-stethoscope-line"></i> Doctor Portal</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- MAIN WRAPPER -->
+    <div class="page-wrapper">
+        <div class="page-container">
+
+            <div class="success-card">
+                <div class="success-badge-icon">
+                    <i class="ri-checkbox-circle-fill"></i>
+                </div>
+
+                <h1 style="text-align: center;">Prescription Issued & Saved!</h1>
+                <p style="text-align: center; color: var(--slate-500); margin-bottom: 2rem;">
+                    The digital prescription has been committed to the patient's record and scheduled for auto-expiration in {{ patient["max_duration_days"] }} days.
+                    {% if patient["prescription_ref"] %} Reference: <strong>{{ patient["prescription_ref"] }}</strong>.{% endif %}
+                    A basic-phone notice contains only this reference — not medicine names.
+                </p>
+
+                <div class="prescription-letterhead">
+                    <div class="rx-watermark">Rx</div>
+
+                    <div class="letterhead-header">
+                        <div>
+                            <h2 style="color: var(--primary); display:flex; align-items:center; gap:0.45rem;"><i class="ri-hospital-fill"></i> {{ patient["hospital_name"] }}</h2>
+                            <p style="color: var(--slate-500); font-size: 0.9rem;">Official Digital Prescription Record</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p><strong>Doctor:</strong> {{ patient["doctor_name"] }}</p>
+                            <p style="font-family: monospace; font-size: 0.9rem; color: var(--primary);">ID: {{ appointment_id }}</p>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <p><strong>Patient Name:</strong> {{ patient["name"] }}</p>
+                    </div>
+
+                    <div class="rx-symbol">℞</div>
+
+                    <div class="rx-box">
+                        <h4 style="margin-bottom: 1rem; color: var(--primary);"><i class="ri-capsule-fill"></i> Prescribed Medicines & Regimen</h4>
+                        
+                        {% if patient["medicine_list"] %}
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; background: var(--white); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 1rem; box-shadow: var(--shadow-sm);">
+                                <thead>
+                                    <tr style="background: rgba(2, 132, 199, 0.12); color: var(--primary-dark); text-align: left;">
+                                        <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200); width: 35px;">#</th>
+                                        <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">Medicine & Strength</th>
+                                        <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">Dosage</th>
+                                        <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">Frequency</th>
+                                        <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">How to Use</th>
+                                        <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in patient["medicine_list"] %}
+                                    <tr style="border-bottom: 1px solid var(--slate-200);">
+                                        <td style="padding: 0.85rem 0.75rem; font-weight: 700;">{{ item.index }}</td>
+                                        <td style="padding: 0.85rem 0.75rem; font-weight: 700; color: var(--dark);">{{ item.name }}</td>
+                                        <td style="padding: 0.85rem 0.75rem; font-weight: 600; color: var(--slate-700);">{{ item.dosage }}</td>
+                                        <td style="padding: 0.85rem 0.75rem; color: var(--secondary-dark); font-weight: 700;">{{ item.frequency }}</td>
+                                        <td style="padding: 0.85rem 0.75rem; color: var(--slate-600);">{{ item.instructions }}</td>
+                                        <td style="padding: 0.85rem 0.75rem; font-weight: 700; color: var(--primary);">{{ item.days }} Days</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="rx-item">
+                            <div class="rx-label">Medicine</div>
+                            <div class="rx-val">{{ patient["medicine"] }}</div>
+                        </div>
+                        {% endif %}
+
+                        <div class="rx-item" style="margin-top: 1.25rem;">
+                            <div class="rx-label">General Advice & Special Instructions</div>
+                            <div class="rx-val" style="font-weight: 600; color: var(--dark);">{{ patient["instructions"] }}</div>
+                        </div>
+                    </div>
+
+                    <div class="locked-banner">
+                        <i class="ri-lock-2-line"></i> This prescription is digitally locked and timestamped.
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="/doctor" class="btn">
+                        <i class="ri-arrow-left-line"></i> Return to Doctor Dashboard
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <p>&copy; 2026 RxVault Digital Healthcare System. All rights reserved.</p>
+            <div class="footer-credits">
+                <span><i class="ri-user-smile-fill" style="color: var(--primary);"></i> <strong>P. Pranay Kumar Reddy</strong></span>
+                <span><a href="tel:7207795562" class="footer-link"><i class="ri-phone-fill" style="color: var(--secondary);"></i> 7207795562</a></span>
+                <span><a href="mailto:pranaykumarr800@gmail.com" class="footer-link"><i class="ri-mail-fill" style="color: var(--primary);"></i> pranaykumarr800@gmail.com</a></span>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

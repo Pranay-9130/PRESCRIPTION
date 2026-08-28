@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Admin - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo"><div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div><span>System Admin</span></a>
+            <ul class="nav-links">
+                <li><a href="/admin/hospital" class="nav-link"><i class="ri-hospital-fill"></i> Hospital Admin</a></li>
+                <li><a href="/staff/logout" class="nav-link"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="page-wrapper">
+        <div class="page-container">
+            <div class="page-header" style="text-align:left; margin-bottom:1.5rem;">
+                <h1><i class="ri-shield-star-fill" style="color:var(--primary);"></i> Platform configuration</h1>
+                <p class="muted"><i class="ri-user-stethoscope-line"></i> Doctors: {{ doctor_count }} · <i class="ri-team-fill"></i> Staff: {{ staff_count }} · <i class="ri-calendar-check-fill"></i> Appointments: {{ appt_count }}</p>
+            </div>
+
+            <div class="summary-card">
+                <h3 class="section-title"><i class="ri-hospital-fill"></i> Hospitals</h3>
+                {% for h in hospitals %}
+                <div class="details-row"><span>{{ h.name }}</span><span>{{ h.location }}</span></div>
+                {% endfor %}
+            </div>
+
+            <form class="form-card" method="POST" action="/admin/system">
+                <div class="form-group">
+                    <label><i class="ri-timer-flash-fill"></i> QR token lifetime (hours)</label>
+                    <input name="qr_token_ttl_hours" class="form-control" value="{{ settings.get('qr_token_ttl_hours', '72') }}">
+                </div>
+                <div class="form-group">
+                    <label><i class="ri-notification-3-fill"></i> Notification provider (console, webhook, file)</label>
+                    <input name="notification_provider" class="form-control" value="{{ settings.get('notification_provider', 'console') }}">
+                </div>
+                <button class="btn" type="submit"><i class="ri-save-3-fill"></i> Save settings</button>
+            </form>
+            <p class="muted">Webhook URL and API key are set with NOTIFICATION_WEBHOOK_URL and NOTIFICATION_API_KEY environment variables. Do not put clinical details in SMS.</p>
+        </div>
+    </div>
+    <script>
+        document.querySelectorAll('a[href="/staff/logout"]').forEach((link) => {
+            link.addEventListener("click", async (event) => {
+                event.preventDefault();
+                try {
+                    if (window.RxVaultOffline) {
+                        await window.RxVaultOffline.clearAll();
+                    }
+                } catch (err) {}
+                window.location.href = "/staff/logout";
+            });
+        });
+    </script>
+</body>
+</html>

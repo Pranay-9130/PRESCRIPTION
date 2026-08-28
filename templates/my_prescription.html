@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Prescription - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="/hospitals" class="nav-link"><i class="ri-hospital-line"></i> Find Hospitals</a></li>
+                {% if current_doctor %}
+                <li><a href="/doctor" class="nav-link nav-btn"><i class="ri-user-stethoscope-line"></i> {{ current_doctor.name }}</a></li>
+                <li><a href="/doctor/logout" class="nav-link nav-btn-secondary" style="color: var(--danger) !important;"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+                {% else %}
+                <li><a href="/doctor/login" class="nav-link nav-btn-secondary"><i class="ri-user-stethoscope-line"></i> Doctor Login</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- MAIN WRAPPER -->
+    <div class="page-wrapper">
+        <div class="page-container" style="max-width: 600px;">
+
+            <div class="page-header">
+                <div class="page-header-icon"><i class="ri-file-text-fill"></i></div>
+                <h1>Patient Prescription Access</h1>
+                <p>Enter your Appointment ID and registered mobile number to retrieve your official digital prescription.</p>
+            </div>
+
+            {% if message %}
+            <div class="alert-message alert-danger">
+                <i class="ri-information-line"></i> {{ message }}
+            </div>
+            {% endif %}
+            <div id="offlinePatientBanner" class="alert-message alert-danger" style="display:none;">
+                <i class="ri-wifi-off-fill"></i> You are currently offline. Showing your last saved prescription.
+            </div>
+            <div id="offlineRxView"></div>
+
+            <form class="form-card" method="POST" action="/my-prescription">
+
+                <div class="form-group">
+                    <label for="appointment_id"><i class="ri-hashtag"></i> Appointment ID</label>
+                    <input type="text" id="appointment_id" name="appointment_id" placeholder="e.g. RX-12345678" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="mobile"><i class="ri-phone-line"></i> Registered Mobile Number</label>
+                    <input type="tel" id="mobile" name="mobile" placeholder="Enter your 10-digit mobile number" required>
+                </div>
+
+                <button type="submit" class="btn btn-block">
+                    <i class="ri-search-eye-line"></i> View Digital Prescription
+                </button>
+
+            </form>
+
+            <a class="back-link" href="/">
+                <i class="ri-arrow-left-line"></i> Back to Home
+            </a>
+
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <p>&copy; 2026 RxVault Digital Healthcare System. All rights reserved.</p>
+            <div class="footer-credits">
+                <span><i class="ri-user-smile-fill" style="color: var(--primary);"></i> <strong>P. Pranay Kumar Reddy</strong></span>
+                <span><a href="tel:7207795562" class="footer-link"><i class="ri-phone-fill" style="color: var(--secondary);"></i> 7207795562</a></span>
+                <span><a href="mailto:pranaykumarr800@gmail.com" class="footer-link"><i class="ri-mail-fill" style="color: var(--primary);"></i> pranaykumarr800@gmail.com</a></span>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

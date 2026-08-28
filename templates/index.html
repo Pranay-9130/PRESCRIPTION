@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RxVault - Secure Digital Prescription & Appointment System</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault</span>
+            </a>
+            <div class="system-status">
+                <span class="status-dot"></span> Verified Medical Network
+            </div>
+            <ul class="nav-links">
+                <li><a href="/hospitals" class="nav-link"><i class="ri-hospital-fill"></i> Find Hospitals</a></li>
+                <li><a href="/my-prescription" class="nav-link"><i class="ri-file-list-3-fill"></i> My Prescription</a></li>
+                {% if current_staff %}
+                <li><a href="/staff/helpdesk" class="nav-link"><i class="ri-customer-service-2-fill"></i> Help Desk</a></li>
+                {% endif %}
+                {% if current_doctor %}
+                <li><a href="/doctor" class="nav-link nav-btn"><i class="ri-stethoscope-line"></i> {{ current_doctor.name }}</a></li>
+                <li><a href="/doctor/logout" class="nav-link nav-btn-secondary" style="color: var(--danger) !important;"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+                {% else %}
+                <li><a href="/doctor/login" class="nav-link nav-btn-secondary"><i class="ri-stethoscope-line"></i> Doctor Login</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- MAIN WRAPPER -->
+    <div class="page-wrapper">
+        <div class="container">
+            
+            <section class="hero">
+                <div class="hero-badge">
+                    <i class="ri-shield-check-fill"></i> Accredited Healthcare Platform
+                </div>
+                <h1>Secure Digital <span>Prescription</span> & Appointment System</h1>
+                <p class="hero-subtitle">
+                    Find accredited hospitals, book doctor appointments, generate verifiable QR passes, and access your digital prescriptions anytime securely.
+                </p>
+                <div class="hero-actions">
+                    <a href="/hospitals" class="btn btn-success">
+                        <i class="ri-calendar-check-fill"></i> Book Appointment Now
+                    </a>
+                    <a href="/my-prescription" class="btn btn-outline">
+                        <i class="ri-search-eye-fill"></i> Access My Prescription
+                    </a>
+                    <a href="/kiosk" class="btn btn-secondary">
+                        <i class="ri-computer-fill"></i> Hospital Kiosk
+                    </a>
+                    <a href="/staff/login" class="btn btn-secondary">
+                        <i class="ri-id-card-fill"></i> Staff / Admin
+                    </a>
+                </div>
+
+                <div class="trust-row">
+                    <span class="trust-pill"><i class="ri-shield-check-fill"></i> Encrypted QR Pass</span>
+                    <span class="trust-pill"><i class="ri-capsule-fill"></i> Digital Prescriptions</span>
+                    <span class="trust-pill"><i class="ri-wifi-off-fill"></i> Offline Ready</span>
+                    <span class="trust-pill"><i class="ri-printer-fill"></i> Print at Help Desk</span>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="ri-hospital-fill"></i></div>
+                        <h3>Top Accredited Hospitals</h3>
+                        <p>Browse top multi-specialty hospitals and consult with expert doctors seamlessly.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon fi-qr"><i class="ri-qr-code-fill"></i></div>
+                        <h3>Instant QR Pass & Scan</h3>
+                        <p>Receive encrypted QR codes for instant check-in. Doctors can scan QR codes to prescribe instantly.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon fi-lock"><i class="ri-lock-2-fill"></i></div>
+                        <h3>Multi-Medicine Digital Rx</h3>
+                        <p>Digital prescriptions with structured medicine tables, locked securely for patient safety.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon fi-wifi"><i class="ri-cloud-off-fill"></i></div>
+                        <h3>Offline & PWA Access</h3>
+                        <p>Doctors can continue consultations offline. Patients can reopen a previously downloaded prescription without internet.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon fi-phone"><i class="ri-smartphone-fill"></i></div>
+                        <h3>No smartphone required</h3>
+                        <p>Basic-phone reference messages, hospital help desk, and printable copies keep care accessible for everyone.</p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <p>&copy; 2026 RxVault Digital Healthcare System. All rights reserved.</p>
+            <div class="footer-credits">
+                <span><i class="ri-user-smile-fill" style="color: var(--primary);"></i> <strong>P. Pranay Kumar Reddy</strong></span>
+                <span><a href="tel:7207795562" class="footer-link"><i class="ri-phone-fill" style="color: var(--secondary);"></i> 7207795562</a></span>
+                <span><a href="mailto:pranaykumarr800@gmail.com" class="footer-link"><i class="ri-mail-fill" style="color: var(--primary);"></i> pranaykumarr800@gmail.com</a></span>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

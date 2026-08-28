@@ -1,0 +1,27 @@
+{
+  "name": "RxVault Digital Healthcare",
+  "short_name": "RxVault",
+  "description": "Secure digital appointments, consultations, and prescriptions — including offline access.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#0284c7",
+  "lang": "en",
+  "categories": ["medical", "health"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help Desk - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault Help Desk</span>
+            </a>
+            <div class="system-status">
+                <span class="status-dot"></span> {{ current_staff.full_name }} ({{ current_staff.role }})
+            </div>
+            <ul class="nav-links">
+                <li><a href="/kiosk" class="nav-link"><i class="ri-computer-fill"></i> Kiosk</a></li>
+                <li><a href="/staff/logout" class="nav-link nav-btn-secondary"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="page-wrapper">
+        <div class="page-container">
+            <div class="page-header">
+                <div class="page-header-icon"><i class="ri-customer-service-2-fill"></i></div>
+                <h1>Hospital-assisted prescription access</h1>
+                <p>For patients without smartphones or internet. Appointment ID alone cannot reveal a prescription.</p>
+            </div>
+            {% if error %}
+            <div class="alert-message alert-danger"><i class="ri-error-warning-fill"></i> {{ error }}</div>
+            {% endif %}
+            <form class="form-card no-print" method="POST" action="/staff/helpdesk">
+                <div class="form-group">
+                    <label><i class="ri-hashtag"></i> Appointment ID</label>
+                    <input name="appointment_id" class="form-control" placeholder="RX-XXXXXXXX">
+                </div>
+                <div class="form-group">
+                    <label><i class="ri-ticket-2-fill"></i> Hospital desk token (patients without a mobile)</label>
+                    <input name="hospital_token" class="form-control" placeholder="HT-XXXXXXXX">
+                </div>
+                <div class="form-group">
+                    <label><i class="ri-phone-fill"></i> Mobile number or last 4 digits</label>
+                    <input name="mobile" class="form-control" placeholder="Registered mobile">
+                </div>
+                <button class="btn btn-block" type="submit"><i class="ri-search-2-fill"></i> Retrieve prescription</button>
+            </form>
+
+            {% if prescription %}
+            <div class="prescription-letterhead" id="printArea">
+                <h2>{{ prescription.hospital_name }}</h2>
+                <p>Help desk copy · Ref {{ prescription.prescription_ref or 'N/A' }} · {{ prescription.appointment_id }}</p>
+                <ul class="details-list">
+                    <li class="details-row"><span class="key">Patient</span><span class="val">{{ prescription.name }}</span></li>
+                    <li class="details-row"><span class="key">Doctor</span><span class="val">{{ prescription.doctor_name }}</span></li>
+                    <li class="details-row"><span class="key">Date</span><span class="val">{{ prescription.date }}</span></li>
+                </ul>
+                {% if prescription.is_expired or prescription.prescription_status != 'Saved' %}
+                <div class="expired-lock">
+                    <h2><i class="ri-time-fill"></i> Time of Usage Completed</h2>
+                    <p>Prescribed duration has expired. Please visit your doctor again for a fresh consultation.</p>
+                </div>
+                {% else %}
+                <table class="rx-table">
+                    <thead>
+                        <tr><th>#</th><th>Medicine & Strength</th><th>Dosage</th><th>Frequency</th><th>How to Use</th><th>Duration</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in prescription.medicine_list %}
+                        <tr>
+                            <td>{{ item.index }}</td>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.dosage }}</td>
+                            <td>{{ item.frequency }}</td>
+                            <td>{{ item.instructions }}</td>
+                            <td>{{ item.days }} Days</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Advice:</strong> {{ prescription.instructions }}</p>
+                {% endif %}
+                <p class="muted">Prints recorded: {{ prescription.print_count }}</p>
+            </div>
+            <div class="no-print" style="display:flex; gap:1rem; flex-wrap:wrap; margin-top:1rem;">
+                <button class="btn btn-outline" type="button" onclick="window.print()"><i class="ri-printer-fill"></i> Print summary</button>
+                <form method="POST" action="/staff/print-log">
+                    <input type="hidden" name="appointment_id" value="{{ prescription.appointment_id }}">
+                    <input type="hidden" name="identifier_used" value="{{ identifier_used or 'helpdesk' }}">
+                    <button class="btn btn-secondary" type="submit"><i class="ri-file-copy-fill"></i> Record physical copy issued</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <script>
+        document.querySelectorAll('a[href="/staff/logout"]').forEach((link) => {
+            link.addEventListener("click", async (event) => {
+                event.preventDefault();
+                try {
+                    if (window.RxVaultOffline) {
+                        await window.RxVaultOffline.clearAll();
+                    }
+                } catch (err) {}
+                window.location.href = "/staff/logout";
+            });
+        });
+    </script>
+</body>
+</html>

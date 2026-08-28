@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctors - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault</span>
+            </a>
+            <div class="system-status">
+                <span class="status-dot"></span> Verified Medical Network
+            </div>
+            <ul class="nav-links">
+                <li><a href="/hospitals" class="nav-link"><i class="ri-hospital-line"></i> Find Hospitals</a></li>
+                <li><a href="/my-prescription" class="nav-link"><i class="ri-file-text-line"></i> My Prescription</a></li>
+                {% if current_doctor %}
+                <li><a href="/doctor" class="nav-link nav-btn"><i class="ri-user-stethoscope-line"></i> {{ current_doctor.name }}</a></li>
+                <li><a href="/doctor/logout" class="nav-link nav-btn-secondary" style="color: var(--danger) !important;"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+                {% else %}
+                <li><a href="/doctor/login" class="nav-link nav-btn-secondary"><i class="ri-user-stethoscope-line"></i> Doctor Login</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- MAIN WRAPPER -->
+    <div class="page-wrapper">
+        <div class="container">
+
+            <div class="page-header">
+                <div class="page-header-icon"><i class="ri-stethoscope-line"></i></div>
+                <h1>Available Doctors</h1>
+                <p><strong>{{ hospital_name }}</strong> &bull; Department of <strong>{{ department }}</strong></p>
+            </div>
+
+            <div class="doctor-grid">
+                {% if doctors %}
+                    {% for doctor in doctors %}
+                    <div class="doctor-card">
+                        <div>
+                            <div class="doctor-avatar">
+                                <i class="ri-user-stethoscope-line"></i>
+                            </div>
+                            <h2 class="card-title">{{ doctor.name }}</h2>
+                            <div class="card-meta">
+                                <i class="ri-stethoscope-line"></i> {{ department }}
+                            </div>
+                            <div class="doctor-exp">
+                                <i class="ri-star-fill"></i> {{ doctor.experience }}
+                            </div>
+                        </div>
+                        <a href="/appointment/{{ hospital_id }}/{{ department }}/{{ doctor.id }}" class="btn btn-block btn-success">
+                            Select Doctor <i class="ri-calendar-check-line"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="summary-card" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+                        <i class="ri-user-unfollow-line" style="font-size: 3rem; color: var(--slate-400);"></i>
+                        <h3 style="margin-top: 1rem; color: var(--slate-700);">No Doctors Found</h3>
+                        <p style="color: var(--slate-500); margin-bottom: 1.5rem;">There are no doctors registered under {{ department }} at {{ hospital_name }} yet.</p>
+                        <a href="/doctor/register" class="btn btn-outline"><i class="ri-user-add-line"></i> Register as a Doctor</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <a class="back-link" href="/hospital/{{ hospital_id }}">
+                <i class="ri-arrow-left-line"></i> Back to Departments
+            </a>
+
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <p>&copy; 2026 RxVault Digital Healthcare System. All rights reserved.</p>
+            <div class="footer-credits">
+                <span><i class="ri-user-smile-fill" style="color: var(--primary);"></i> <strong>P. Pranay Kumar Reddy</strong></span>
+                <span><a href="tel:7207795562" class="footer-link"><i class="ri-phone-fill" style="color: var(--secondary);"></i> 7207795562</a></span>
+                <span><a href="mailto:pranaykumarr800@gmail.com" class="footer-link"><i class="ri-mail-fill" style="color: var(--primary);"></i> pranaykumarr800@gmail.com</a></span>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

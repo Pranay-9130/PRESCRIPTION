@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Prescription - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault</span>
+            </a>
+            <div class="system-status">
+                <span class="status-dot"></span> Verified Patient Access
+            </div>
+            <ul class="nav-links">
+                <li><a href="/hospitals" class="nav-link"><i class="ri-hospital-line"></i> Find Hospitals</a></li>
+                <li><a href="/my-prescription" class="nav-link"><i class="ri-file-text-line"></i> My Prescription</a></li>
+                {% if current_doctor %}
+                <li><a href="/doctor" class="nav-link nav-btn"><i class="ri-user-stethoscope-line"></i> {{ current_doctor.name }}</a></li>
+                <li><a href="/doctor/logout" class="nav-link nav-btn-secondary" style="color: var(--danger) !important;"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+                {% else %}
+                <li><a href="/doctor/login" class="nav-link nav-btn-secondary"><i class="ri-user-stethoscope-line"></i> Doctor Portal</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- MAIN WRAPPER -->
+    <div class="page-wrapper">
+        <div class="page-container">
+
+            <p id="lastSyncedStamp" class="sync-meta"></p>
+            <div id="offlinePatientBanner" class="alert-message alert-danger" style="display:none;">
+                <i class="ri-wifi-off-fill"></i> You are currently offline. Showing your last saved prescription.
+            </div>
+            <script id="rx-prescription-pack" type="application/json">{{ prescription_pack|default('null')|safe }}</script>
+            <div id="offlineRxView"></div>
+            <div class="prescription-letterhead">
+                <div class="rx-watermark">Rx</div>
+
+                <div class="letterhead-header">
+                    <div>
+                        <h1 style="color: var(--primary); font-size: 2.1rem; display:flex; align-items:center; gap:0.5rem;"><i class="ri-hospital-fill"></i> {{ patient["hospital_name"] }}</h1>
+                        <p style="color: var(--slate-500); font-size: 0.95rem;">Official Digital Prescription Document</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 0.8rem; color: var(--slate-500); text-transform: uppercase; font-weight: 700;">Appointment ID</span>
+                        <div style="font-family: monospace; font-size: 1.2rem; font-weight: 800; color: var(--primary);">{{ appointment_id }}</div>
+                        <p style="font-size: 0.85rem; color: var(--slate-500); margin-top: 0.25rem;"><i class="ri-calendar-line"></i> Date: {{ patient["date"] }}</p>
+                    </div>
+                </div>
+
+                <ul class="details-list" style="border-top: none; margin: 0 0 1.5rem 0;">
+                    <li class="details-row" style="padding: 0.5rem 0;">
+                        <span class="key"><i class="ri-user-line"></i> Patient Name</span>
+                        <span class="val">{{ patient["name"] }}</span>
+                    </li>
+                    <li class="details-row" style="padding: 0.5rem 0;">
+                        <span class="key"><i class="ri-user-stethoscope-line"></i> Attending Doctor</span>
+                        <span class="val">{{ patient["doctor_name"] }}</span>
+                    </li>
+                </ul>
+
+                {% if patient["is_expired"] %}
+                <!-- EXPIRED PRESCRIPTION WARNING BANNER -->
+                <div style="background: var(--danger-light); border: 2px solid var(--danger); border-radius: var(--radius); padding: 1.75rem; text-align: center; margin: 1.5rem 0; box-shadow: var(--shadow-md);">
+                    <div style="width: 60px; height: 60px; background: #fee2e2; color: var(--danger); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 0.85rem;">
+                        <i class="ri-time-line"></i>
+                    </div>
+                    <h2 style="color: var(--danger); font-size: 1.6rem; margin-bottom: 0.5rem;"><i class="ri-time-fill"></i> Time of Usage Completed</h2>
+                    <p style="color: #991b1b; font-size: 1.1rem; font-weight: 700; max-width: 600px; margin: 0 auto 1rem;">
+                        Prescribed duration has expired. Please visit your doctor again for a fresh consultation.
+                    </p>
+                    <div style="display: inline-block; background: #fecaca; color: #7f1d1d; font-size: 0.85rem; font-weight: 700; padding: 0.35rem 1rem; border-radius: var(--radius-full);">
+                        <i class="ri-lock-2-fill"></i> Medicines auto-hidden for patient safety
+                    </div>
+                </div>
+
+                {% else %}
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div class="rx-symbol">℞</div>
+                    <div style="background: var(--success-light); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 700; font-size: 0.875rem; padding: 0.35rem 0.85rem; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 0.35rem;">
+                        <i class="ri-checkbox-circle-fill"></i> Active Prescription (Valid for {{ patient["max_duration_days"] }} Days)
+                    </div>
+                </div>
+
+                <div class="rx-box">
+                    <h4 style="margin-bottom: 1rem; color: var(--primary);"><i class="ri-capsule-fill"></i> Prescribed Medicines & Regimen</h4>
+
+                    {% if patient["medicine_list"] %}
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; background: var(--white); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 1rem; box-shadow: var(--shadow-sm);">
+                            <thead>
+                                <tr style="background: rgba(2, 132, 199, 0.12); color: var(--primary-dark); text-align: left;">
+                                    <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200); width: 35px;">#</th>
+                                    <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">Medicine & Strength</th>
+                                    <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">Dosage</th>
+                                    <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">Frequency</th>
+                                    <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">How to Use</th>
+                                    <th style="padding: 0.85rem 0.75rem; border-bottom: 2px solid var(--slate-200);">Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in patient["medicine_list"] %}
+                                <tr style="border-bottom: 1px solid var(--slate-200);">
+                                    <td style="padding: 0.85rem 0.75rem; font-weight: 700;">{{ item.index }}</td>
+                                    <td style="padding: 0.85rem 0.75rem; font-weight: 700; color: var(--dark);">{{ item.name }}</td>
+                                    <td style="padding: 0.85rem 0.75rem; font-weight: 600; color: var(--slate-700);">{{ item.dosage }}</td>
+                                    <td style="padding: 0.85rem 0.75rem; color: var(--secondary-dark); font-weight: 700;">{{ item.frequency }}</td>
+                                    <td style="padding: 0.85rem 0.75rem; color: var(--slate-600);">{{ item.instructions }}</td>
+                                    <td style="padding: 0.85rem 0.75rem; font-weight: 700; color: var(--primary);">{{ item.days }} Days</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="rx-item">
+                        <div class="rx-label">Medicine Prescribed</div>
+                        <div class="rx-val">{{ patient["medicine"] }}</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="rx-item" style="margin-top: 1.25rem;">
+                        <div class="rx-label">General Advice & Special Instructions</div>
+                        <div class="rx-val" style="font-weight: 600; color: var(--dark);">{{ patient["instructions"] }}</div>
+                    </div>
+                    <p class="sync-meta">Prescription date: {{ patient["prescription_date"] }} · Expiry: {{ patient["prescription_expiry_date"] }}</p>
+                </div>
+                {% endif %}
+
+                <div class="locked-banner">
+                    <i class="ri-shield-check-line" style="color: var(--secondary);"></i> This digital prescription is verified & securely issued by RxVault.
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap;">
+                    <button onclick="window.print()" class="btn btn-outline">
+                        <i class="ri-printer-line"></i> Print Prescription
+                    </button>
+                    <a href="/my-prescription" class="btn btn-secondary">
+                        <i class="ri-arrow-left-line"></i> Back to Lookup
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <p>&copy; 2026 RxVault Digital Healthcare System. All rights reserved.</p>
+            <div class="footer-credits">
+                <span><i class="ri-user-smile-fill" style="color: var(--primary);"></i> <strong>P. Pranay Kumar Reddy</strong></span>
+                <span><a href="tel:7207795562" class="footer-link"><i class="ri-phone-fill" style="color: var(--secondary);"></i> 7207795562</a></span>
+                <span><a href="mailto:pranaykumarr800@gmail.com" class="footer-link"><i class="ri-mail-fill" style="color: var(--primary);"></i> pranaykumarr800@gmail.com</a></span>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="/hospitals" class="nav-link"><i class="ri-hospital-line"></i> Find Hospitals</a></li>
+                {% if current_doctor %}
+                <li><a href="/doctor" class="nav-link nav-btn"><i class="ri-user-stethoscope-line"></i> {{ current_doctor.name }}</a></li>
+                <li><a href="/doctor/logout" class="nav-link nav-btn-secondary" style="color: var(--danger) !important;"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+                {% else %}
+                <li><a href="/doctor/login" class="nav-link nav-btn-secondary"><i class="ri-user-stethoscope-line"></i> Doctor Login</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- MAIN WRAPPER -->
+    <div class="page-wrapper">
+        <div class="page-container">
+
+            <div class="page-header">
+                <div class="page-header-icon icon-pay"><i class="ri-secure-payment-fill"></i></div>
+                <h1>Consultation Payment</h1>
+                <p>Complete your payment securely to generate your appointment QR pass.</p>
+            </div>
+
+            <div class="payment-card">
+
+                <h3 class="section-title"><i class="ri-receipt-line"></i> Payment Summary</h3>
+
+                <ul class="details-list">
+                    <li class="details-row">
+                        <span class="key"><i class="ri-user-line"></i> Patient</span>
+                        <span class="val">{{ name }}</span>
+                    </li>
+                    <li class="details-row">
+                        <span class="key"><i class="ri-building-4-line"></i> Hospital</span>
+                        <span class="val">{{ hospital_name }}</span>
+                    </li>
+                    <li class="details-row">
+                        <span class="key"><i class="ri-user-stethoscope-line"></i> Doctor</span>
+                        <span class="val">{{ doctor_name }}</span>
+                    </li>
+                    <li class="details-row">
+                        <span class="key"><i class="ri-calendar-event-line"></i> Schedule</span>
+                        <span class="val">{{ date }} ({{ slot }})</span>
+                    </li>
+                    <li class="details-row price-row">
+                        <span class="key" style="font-weight: 700; color: var(--dark);"><i class="ri-money-dollar-circle-line"></i> Consultation Fee</span>
+                        <span class="val">₹500</span>
+                    </li>
+                </ul>
+
+                <form method="POST" action="/payment-success">
+
+                    <input type="hidden" name="name" value="{{ name }}">
+                    <input type="hidden" name="gender" value="{{ gender }}">
+                    <input type="hidden" name="mobile" value="{{ mobile }}">
+                    <input type="hidden" name="problem" value="{{ problem }}">
+                    <input type="hidden" name="hospital_id" value="{{ hospital_id }}">
+                    <input type="hidden" name="department" value="{{ department }}">
+                    <input type="hidden" name="doctor_id" value="{{ doctor_id }}">
+                    <input type="hidden" name="date" value="{{ date }}">
+                    <input type="hidden" name="slot" value="{{ slot }}">
+                    <input type="hidden" name="amount" value="500">
+
+                    <button type="submit" class="btn btn-block btn-success">
+                        <i class="ri-shield-flash-line"></i> Pay ₹500 & Confirm Booking
+                    </button>
+
+                </form>
+
+                <div class="locked-banner" style="justify-content: center; margin-top: 1.5rem;">
+                    <i class="ri-lock-line" style="color: var(--primary);"></i> 256-bit Encrypted Healthcare Transaction
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <p>&copy; 2026 RxVault Digital Healthcare System. All rights reserved.</p>
+            <div class="footer-credits">
+                <span><i class="ri-user-smile-fill" style="color: var(--primary);"></i> <strong>P. Pranay Kumar Reddy</strong></span>
+                <span><a href="tel:7207795562" class="footer-link"><i class="ri-phone-fill" style="color: var(--secondary);"></i> 7207795562</a></span>
+                <span><a href="mailto:pranaykumarr800@gmail.com" class="footer-link"><i class="ri-mail-fill" style="color: var(--primary);"></i> pranaykumarr800@gmail.com</a></span>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>
