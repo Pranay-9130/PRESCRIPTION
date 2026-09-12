@@ -106,6 +106,9 @@ def public_base_url(request: Request) -> str:
     except Exception:
         pass
 
+    if request is None:
+        return "https://prescription-2sui.onrender.com"
+
     proto = (
         request.headers.get("x-forwarded-proto")
         or request.headers.get("x-forwarded-protocol")
@@ -206,45 +209,62 @@ def build_prescription_share(patient, request: Request) -> dict:
     quote_text = quotes[abs(hash(str(appointment_id))) % len(quotes)]
 
     clean_mobile = digits_only(mobile)
-    direct_rx_url = f"{base_url}/my-prescription?id={appointment_id}&m={clean_mobile}"
+    portal_rx_url = f"{base_url}/my-prescription"
+
+    # Masked mobile, e.g. ******4708
+    if len(clean_mobile) >= 4:
+        masked_mobile = "*" * (len(clean_mobile) - 4) + clean_mobile[-4:]
+    else:
+        masked_mobile = clean_mobile
+
+    # Format date nicely e.g. 12 Sep 2026 if possible, otherwise fallback
+    formatted_date = date_str
+    if date_str:
+        try:
+            formatted_date = datetime.strptime(date_str, "%Y-%m-%d").strftime("%d %b %Y")
+        except Exception:
+            formatted_date = date_str
+
+    h_name = (hospital_name or "RxVault Accredited Hospital").upper()
 
     lines = [
-        f"🏥 *{hospital_name or 'RxVault Accredited Hospital'}*",
-        "📋 *Official Digital Prescription Notice*",
-        "",
-        f"✨ _{quote_text}_",
-        "",
-        f"Dear *{patient_name}*,",
-        f"Your attending doctor, *{doctor_name}*, has officially prepared and digitally signed your prescription.",
-        "",
-        "🔒 *CONSULTATION SUMMARY (SECURE VAULT):*",
-        f"• 🆔 *Appointment ID:* {appointment_id}",
-        f"• 🔖 *Digital Security Ref:* {prescription_ref or 'RX-VAULT'}",
-        f"• 📅 *Consultation Date:* {date_str or datetime.now().strftime('%Y-%m-%d')}",
-        f"• 💊 *Prescribed Regimen:* {med_text} (Encrypted & Verified)",
-        f"• ⏳ *Validity Period:* Active for {duration or 5} Days (Auto-Expiry Security Enabled)",
-        "",
-        "📲 *VIEW YOUR COMPLETE PRESCRIPTION IN RXVAULT:*",
-        "👉 For your clinical safety and privacy, exact dosages, morning/night timings, dietary instructions, and doctor's advice are securely stored in your personal RxVault.",
-        "",
-        "🔗 *Tap the official link below to view your full prescription:*",
-        f"{direct_rx_url}",
-        "",
-        "🛡️ _Secured with 256-bit encryption by RxVault Digital Healthcare System._",
-        "⚠️ _Please take medicines strictly as advised on RxVault. In case of emergency, contact the hospital immediately._"
+        f"🏥 {h_name}",
+        "💙 Official Digital Prescription Notice",
+        "✨ “Your health deserves care you can trust — and a prescription you can always find.”",
+        f"Dear {patient_name} 👋",
+        "Your attending doctor,",
+        f"👨‍⚕️ {doctor_name},",
+        "has prepared and digitally signed your prescription.",
+        "🔐 YOUR RxVAULT IS READY",
+        f"🆔 Appointment ID: {appointment_id}",
+        f"📱 Registered Mobile: {masked_mobile}",
+        f"🔖 Security Ref: {prescription_ref or 'RX-VAULT'}",
+        f"📅 Consultation Date: {formatted_date or datetime.now().strftime('%d %b %Y')}",
+        f"💊 Prescribed Regimen: {med_text}",
+        f"⏳ Validity: Active for {duration or 5} Days",
+        "━━━━━━━━━━━━━━━━━━",
+        "🔒 SECURE ACCESS",
+        "Your complete prescription is securely stored in your personal RxVault.",
+        "🔗 Open RxVault:",
+        f"{portal_rx_url}",
+        "Enter your Appointment ID and Registered Mobile Number to securely access your prescription.",
+        "━━━━━━━━━━━━━━━━━━",
+        "💙 RxVault",
+        "Your prescription. Your privacy. Your peace of mind.",
+        "⚠️ Please take medicines strictly as advised by your doctor. In case of an emergency, contact your healthcare provider immediately."
     ]
 
     text = "\n".join(lines)
     phone = whatsapp_phone(mobile)
     sms_number = clean_mobile
-    sms_text = text.replace("*", "").replace("_", "")
+    sms_text = text
 
     return {
         "text": text,
         "sms_href": f"sms:{sms_number}?&body={quote(sms_text)}",
         "whatsapp_href": f"https://wa.me/{phone}?text={quote(text)}",
         "mobile": mobile,
-        "direct_url": direct_rx_url,
+        "portal_url": portal_rx_url,
     }
 
 

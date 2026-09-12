@@ -411,14 +411,23 @@ def test_direct_one_tap_whatsapp_link_opens_prescription():
     )
     assert save_rx.status_code == 200
 
-    # 3. Verify direct WhatsApp link was constructed
-    assert f"my-prescription?id={appt_id}&amp;m=9848012345" in save_rx.text
+    # 3. Verify clean portal link was constructed in share message
+    assert "my-prescription" in save_rx.text
+    assert appt_id in save_rx.text
 
-    # 4. Patient opens the direct WhatsApp link (1-tap GET request)
+    # 4. Patient opens the portal and enters Appointment ID + Mobile to view prescription
+    form_view = client.post(
+        "/my-prescription",
+        data={"appointment_id": appt_id, "mobile": "9848012345"},
+    )
+    assert form_view.status_code == 200
+    assert "Sanvika Patient" in form_view.text
+    assert "B-Complex 30 Capsules" in form_view.text
+    assert "Official Digital Prescription Document" in form_view.text
+
+    # 5. Direct GET also works
     direct_view = client.get(f"/my-prescription?id={appt_id}&m=9848012345")
     assert direct_view.status_code == 200
     assert "Sanvika Patient" in direct_view.text
-    assert "B-Complex 30 Capsules" in direct_view.text
-    assert "Official Digital Prescription Document" in direct_view.text
 
 
