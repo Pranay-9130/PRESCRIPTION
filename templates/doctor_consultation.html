@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Patient Consultation & Prescription - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+    <style>
+        .consult-wrapper {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 1rem 0.75rem 3rem;
+        }
+        .consult-header {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--slate-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .consult-doctor-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .consult-doctor-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+        }
+        .patient-card-mobile {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1.5px solid var(--slate-200);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        .patient-quick-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.85rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .complaint-box {
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            padding: 0.6rem 0.85rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            margin-top: 0.75rem;
+        }
+        .med-row-card {
+            background: var(--white);
+            border: 1.5px solid var(--slate-200);
+            border-radius: var(--radius);
+            padding: 1.15rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            transition: var(--transition);
+        }
+        .med-row-card:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+        }
+        .med-row-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.85rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--slate-100);
+        }
+        .quick-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            margin-top: 0.35rem;
+        }
+        .pill-opt {
+            background: var(--slate-100);
+            border: 1px solid var(--slate-300);
+            color: var(--slate-700);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.55rem;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+        }
+        .pill-opt:hover, .pill-opt:active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+        .copy-pill-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--primary);
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .copy-pill-btn:hover {
+            background: rgba(2, 132, 199, 0.1);
+        }
+        @media (max-width: 600px) {
+            .med-grid-mobile {
+                display: flex;
+                flex-direction: column;
+                gap: 0.85rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault</span>
+            </a>
+            <div class="system-status">
+                <span class="status-dot"></span> Consultation Mode
+            </div>
+            <ul class="nav-links">
+                <li><a href="/doctor" class="nav-link"><i class="ri-dashboard-line"></i> Doctor Dashboard</a></li>
+                <li><a href="/doctor/logout" class="nav-link nav-btn-secondary" style="color: var(--danger) !important;"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- MAIN CONSULTATION CONTAINER -->
+    <div class="consult-wrapper">
+
+        <!-- ATTENDING DOCTOR BANNER -->
+        <div class="consult-header">
+            <div class="consult-doctor-badge">
+                <div class="consult-doctor-avatar">
+                    <i class="ri-user-stethoscope-fill"></i>
+                </div>
+                <div>
+                    <strong style="font-size: 1rem; color: var(--dark);">{{ current_doctor.name }}</strong>
+                    <div style="font-size: 0.82rem; color: var(--slate-500);">
+                        {{ current_doctor.hospital_name }} &bull; {{ current_doctor.specialty }}
+                    </div>
+                </div>
+            </div>
+            <div>
+                <a href="/doctor" class="btn btn-outline btn-sm">
+                    <i class="ri-arrow-left-line"></i> Dashboard
+                </a>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="alert-message alert-danger" style="margin-bottom: 1rem;">
+            <i class="ri-error-warning-line"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- PATIENT INFO CARD -->
+        <div class="patient-card-mobile">
+            <div class="patient-quick-info">
+                <div>
+                    <h2 style="font-size: 1.35rem; color: var(--dark); margin-bottom: 0.2rem; display:flex; align-items:center; gap:0.4rem;">
+                        <i class="ri-user-heart-fill" style="color: var(--primary);"></i> {{ patient.name }}
+                        <span style="font-size: 0.85rem; font-weight: 500; color: var(--slate-500);">({{ patient.gender }})</span>
+                    </h2>
+                    <div style="font-size: 0.85rem; color: var(--slate-600); display: flex; align-items:center; gap: 0.5rem; flex-wrap: wrap;">
+                        <span><i class="ri-phone-line"></i> {{ patient.mobile }}</span>
+                        <span>&bull;</span>
+                        <span><i class="ri-calendar-event-line"></i> {{ patient.date }} ({{ patient.slot }})</span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="appointment-id-pill" style="font-size: 0.95rem; padding: 0.35rem 0.75rem;">
+                        {{ appointment_id }}
+                    </div>
+                    <button type="button" class="copy-pill-btn" onclick="navigator.clipboard.writeText('{{ appointment_id }}'); this.innerText='Copied!'; setTimeout(() => this.innerHTML='<i class=\'ri-file-copy-line\'></i> Copy ID', 2000)">
+                        <i class="ri-file-copy-line"></i> Copy ID
+                    </button>
+                </div>
+            </div>
+
+            <div style="font-size: 0.85rem; color: var(--slate-600);">
+                <i class="ri-hospital-line"></i> <strong>{{ patient.hospital_name }}</strong> &bull; Department: <strong>{{ patient.department }}</strong>
+            </div>
+
+            <div class="complaint-box">
+                <i class="ri-stethoscope-line"></i> <strong>Chief Complaint / Problem:</strong>
+                <span>{{ patient.problem if patient.problem else 'General Medical Checkup' }}</span>
+            </div>
+        </div>
+
+        <!-- PREVIOUS VISITS (IF ANY) -->
+        {% if previous_visits %}
+        <div class="summary-card" style="margin-bottom: 1.25rem; border-left: 4px solid var(--secondary); padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="document.getElementById('pastVisitsBox').style.display = document.getElementById('pastVisitsBox').style.display === 'none' ? 'block' : 'none'">
+                <h4 style="margin: 0; color: var(--secondary-dark); font-size: 0.95rem;">
+                    <i class="ri-history-line"></i> Past Medical History ({{ previous_visits|length }} previous visits)
+                </h4>
+                <span style="font-size: 0.8rem; color: var(--secondary-dark); font-weight: 700;">Toggle &blacktriangledown;</span>
+            </div>
+
+            <div id="pastVisitsBox" style="display: none; margin-top: 0.85rem; border-top: 1px solid var(--slate-200); padding-top: 0.75rem;">
+                {% for visit in previous_visits %}
+                <div style="background: var(--white); border: 1px solid var(--slate-200); border-radius: var(--radius-sm); padding: 0.75rem; margin-bottom: 0.5rem; font-size: 0.85rem;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--dark);">
+                        <span><i class="ri-calendar-line"></i> {{ visit.date }}</span>
+                        <span style="color: var(--primary);">{{ visit.appointment_id }}</span>
+                    </div>
+                    <div style="color: var(--slate-600); font-size: 0.8rem;">Doctor: {{ visit.doctor_name }} ({{ visit.hospital_name }})</div>
+                    {% if visit.problem %}
+                    <div style="margin-top: 0.25rem;"><strong>Diagnosis:</strong> {{ visit.problem }}</div>
+                    {% endif %}
+                    {% if visit.medicine_list %}
+                    <div style="margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                        {% for med in visit.medicine_list %}
+                        <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                            {{ med.name }} ({{ med.dosage }}) - {{ med.days }}d
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- PRESCRIPTION FORM -->
+        <div class="form-card" style="padding: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                <div style="width: 32px; height: 32px; background: rgba(2, 132, 199, 0.12); color: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                    <i class="ri-capsule-fill"></i>
+                </div>
+                <h3 style="margin: 0; font-size: 1.25rem;">Prescribe Medicines</h3>
+            </div>
+            <p style="color: var(--slate-500); font-size: 0.85rem; margin-bottom: 1.25rem;">
+                Add medicines, specify regimen instructions, and send the completed prescription directly to the patient's phone.
+            </p>
+
+            <form method="POST" action="/doctor/prescription" id="prescriptionForm">
+                <input type="hidden" name="appointment_id" value="{{ appointment_id }}">
+
+                <!-- MEDICINES CONTAINER -->
+                <div id="medicineContainer">
+
+                    <!-- MEDICINE ITEM #1 -->
+                    <div class="med-row-card" data-index="1">
+                        <div class="med-row-head">
+                            <strong style="color: var(--primary); font-size: 0.95rem;">
+                                <i class="ri-medicine-bottle-line"></i> Medicine #1
+                            </strong>
+                        </div>
+
+                        <div style="margin-bottom: 0.85rem;">
+                            <label style="font-size: 0.85rem; font-weight: 700;">Medicine Name & Strength</label>
+                            <input type="text" list="commonMedsList" class="form-control" name="medicine_name" placeholder="e.g. Paracetamol 500mg" required autocomplete="off">
+                        </div>
+
+                        <div class="med-grid-mobile" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
+                            <div>
+                                <label style="font-size: 0.82rem; font-weight: 700;">Dosage</label>
+                                <input type="text" class="form-control" name="dosage" placeholder="e.g. 1 Tablet" value="1 Tablet" required>
+                                <div class="quick-pills">
+                                    <span class="pill-opt" onclick="setFieldValue(this, '1 Tablet')">1 Tab</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '1 Capsule')">1 Cap</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '5 ml')">5 ml</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '2 Drops')">2 Drops</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.82rem; font-weight: 700;">Frequency / Timing</label>
+                                <input type="text" class="form-control" name="frequency" placeholder="e.g. 1-0-1 (Twice daily)" value="1-0-1 (Twice daily)" required>
+                                <div class="quick-pills">
+                                    <span class="pill-opt" onclick="setFieldValue(this, '1-0-1 (Twice daily)')">1-0-1</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '1-0-0 (Morning)')">1-0-0</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '0-0-1 (Night)')">0-0-1</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '1-1-1 (Thrice daily)')">1-1-1</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, 'SOS (As needed)')">SOS</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="med-grid-mobile" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 0.75rem;">
+                            <div>
+                                <label style="font-size: 0.82rem; font-weight: 700;">Instructions / Food</label>
+                                <input type="text" class="form-control" name="usage_instructions" placeholder="e.g. After meals" value="After meals" required>
+                                <div class="quick-pills">
+                                    <span class="pill-opt" onclick="setFieldValue(this, 'After meals')">After food</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, 'Before meals (Empty stomach)')">Before food</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, 'At bedtime with water')">Bedtime</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.82rem; font-weight: 700;">Duration (Days)</label>
+                                <input type="number" class="form-control" name="duration_days" min="1" max="90" value="5" required>
+                                <div class="quick-pills">
+                                    <span class="pill-opt" onclick="setFieldValue(this, '3')">3d</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '5')">5d</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '7')">7d</span>
+                                    <span class="pill-opt" onclick="setFieldValue(this, '14')">14d</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ADD ANOTHER MEDICINE BUTTON -->
+                <button type="button" class="btn btn-outline btn-block" style="margin-bottom: 1.5rem; min-height: 44px;" onclick="addMedicineItem()">
+                    <i class="ri-add-circle-fill"></i> + Add Another Medicine
+                </button>
+
+                <!-- ADVICE & INSTRUCTIONS -->
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                    <label for="instructions" style="font-size: 0.9rem; font-weight: 700;">
+                        <i class="ri-chat-check-line"></i> Doctor's Advice & Patient Instructions
+                    </label>
+                    <textarea id="instructions" name="instructions" class="form-control" rows="3" placeholder="e.g. Drink plenty of warm water, take complete bed rest, avoid spicy/oily food, and visit if symptoms persist." required>Drink plenty of fluids, take adequate rest, and take prescribed medicines on time. Follow up after completing the course if symptoms persist.</textarea>
+                </div>
+
+                <!-- CONFIDENTIAL NOTES -->
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label for="notes" style="font-size: 0.85rem; color: var(--slate-600);">
+                        <i class="ri-file-text-line"></i> Clinical / Confidential Notes (Optional)
+                    </label>
+                    <textarea id="notes" name="notes" class="form-control" rows="2" placeholder="Clinical observations stored for future visits."></textarea>
+                </div>
+
+                <!-- SUBMIT BUTTON -->
+                <button type="submit" class="btn btn-block btn-success btn-lg" style="font-size: 1.1rem; min-height: 50px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
+                    <i class="ri-save-3-line"></i> Save & Send Prescription
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+    <!-- AUTOCOMPLETE DATALIST OF COMMON MEDICINES -->
+    <datalist id="commonMedsList">
+        <option value="Paracetamol 500mg">
+        <option value="Paracetamol 650mg (Dolo 650)">
+        <option value="Amoxicillin 500mg">
+        <option value="Augmentin 625mg (Amoxicillin + Clavulanic)">
+        <option value="Azithromycin 500mg (Azee 500)">
+        <option value="Pantoprazole 40mg (Pan 40)">
+        <option value="Rabeprazole 20mg (Razo 20)">
+        <option value="Omeprazole 20mg">
+        <option value="Cetirizine 10mg (Cetzine)">
+        <option value="Levocetirizine 5mg (Levocet)">
+        <option value="Montelukast + Levocetirizine (Montair LC)">
+        <option value="Ibuprofen 400mg (Brufen 400)">
+        <option value="Aceclofenac + Paracetamol (Zerodol P)">
+        <option value="Metformin 500mg">
+        <option value="Telmisartan 40mg (Telma 40)">
+        <option value="Atorvastatin 10mg (Atorva 10)">
+        <option value="Cough Syrup (Ascoril D / Benadryl 100ml)">
+        <option value="Oral Rehydration Salts (ORS Sachet)">
+        <option value="Multivitamin & Zinc Capsules (Becadexamin)">
+        <option value="Vitamin C 500mg (Limcee)">
+        <option value="Vitamin D3 60K UI Capsule">
+    </datalist>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <p>&copy; 2026 RxVault Digital Healthcare System. All rights reserved.</p>
+            <div class="footer-credits">
+                <span><i class="ri-user-smile-fill" style="color: var(--primary);"></i> <strong>P. Pranay Kumar Reddy</strong></span>
+                <span><a href="tel:7207795562" class="footer-link"><i class="ri-phone-fill" style="color: var(--secondary);"></i> 7207795562</a></span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let medicineCount = 1;
+
+        function setFieldValue(pillElement, value) {
+            const input = pillElement.closest('div').querySelector('input');
+            if (input) {
+                input.value = value;
+                input.focus();
+            }
+        }
+
+        function addMedicineItem() {
+            medicineCount++;
+            const container = document.getElementById("medicineContainer");
+            const div = document.createElement("div");
+            div.className = "med-row-card";
+            div.dataset.index = medicineCount;
+            div.innerHTML = `
+                <div class="med-row-head">
+                    <strong style="color: var(--primary); font-size: 0.95rem;">
+                        <i class="ri-medicine-bottle-line"></i> Medicine #${medicineCount}
+                    </strong>
+                    <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fecaca; padding: 0.2rem 0.6rem; font-size: 0.78rem;" onclick="removeMedCard(this)">
+                        <i class="ri-delete-bin-line"></i> Remove
+                    </button>
+                </div>
+
+                <div style="margin-bottom: 0.85rem;">
+                    <label style="font-size: 0.85rem; font-weight: 700;">Medicine Name & Strength</label>
+                    <input type="text" list="commonMedsList" class="form-control" name="medicine_name" placeholder="e.g. Pantoprazole 40mg" required autocomplete="off">
+                </div>
+
+                <div class="med-grid-mobile" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
+                    <div>
+                        <label style="font-size: 0.82rem; font-weight: 700;">Dosage</label>
+                        <input type="text" class="form-control" name="dosage" placeholder="e.g. 1 Tablet" value="1 Tablet" required>
+                        <div class="quick-pills">
+                            <span class="pill-opt" onclick="setFieldValue(this, '1 Tablet')">1 Tab</span>
+                            <span class="pill-opt" onclick="setFieldValue(this, '1 Capsule')">1 Cap</span>
+                            <span class="pill-opt" onclick="setFieldValue(this, '5 ml')">5 ml</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.82rem; font-weight: 700;">Frequency / Timing</label>
+                        <input type="text" class="form-control" name="frequency" placeholder="e.g. 1-0-1 (Twice daily)" value="1-0-1 (Twice daily)" required>
+                        <div class="quick-pills">
+                            <span class="pill-opt" onclick="setFieldValue(this, '1-0-1 (Twice daily)')">1-0-1</span>
+                            <span class="pill-opt" onclick="setFieldValue(this, '1-0-0 (Morning)')">1-0-0</span>
+                            <span class="pill-opt" onclick="setFieldValue(this, '0-0-1 (Night)')">0-0-1</span>
+                            <span class="pill-opt" onclick="setFieldValue(this, '1-1-1 (Thrice daily)')">1-1-1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="med-grid-mobile" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 0.75rem;">
+                    <div>
+                        <label style="font-size: 0.82rem; font-weight: 700;">Instructions / Food</label>
+                        <input type="text" class="form-control" name="usage_instructions" placeholder="e.g. After meals" value="After meals" required>
+                        <div class="quick-pills">
+                            <span class="pill-opt" onclick="setFieldValue(this, 'After meals')">After food</span>
+                            <span class="pill-opt" onclick="setFieldValue(this, 'Before meals (Empty stomach)')">Before food</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.82rem; font-weight: 700;">Duration (Days)</label>
+                        <input type="number" class="form-control" name="duration_days" min="1" max="90" value="5" required>
+                        <div class="quick-pills">
+                            <span class="pill-opt" onclick="setFieldValue(this, '3')">3d</span>
+                            <span class="pill-opt" onclick="setFieldValue(this, '5')">5d</span>
+                            <span class="pill-opt" onclick="setFieldValue(this, '7')">7d</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function removeMedCard(btn) {
+            const card = btn.closest(".med-row-card");
+            card.remove();
+        }
+    </script>
+</body>
+
+</html>

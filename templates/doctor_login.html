@@ -39,6 +39,12 @@
                 <p>Enter your official Medical License Number and Password to log in.</p>
             </div>
 
+            {% if scan_unlock %}
+            <div class="alert-message">
+                <i class="ri-qr-scan-2-line"></i> Scanned QR pass is locked. Sign in with your doctor password to open this patient and write the prescription.
+            </div>
+            {% endif %}
+
             {% if success %}
             <div class="alert-message alert-success">
                 <i class="ri-checkbox-circle-fill"></i> {{ success }}
@@ -52,6 +58,7 @@
             {% endif %}
 
             <form class="form-card" method="POST" action="/doctor/login">
+                <input type="hidden" name="next" value="{{ next_url|default('/doctor') }}">
 
                 <div class="form-group">
                     <label for="medical_number"><i class="ri-shield-user-line"></i> Medical License Number</label>

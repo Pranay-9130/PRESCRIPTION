@@ -52,13 +52,60 @@
                 </div>
 
                 <div class="qr-code-box">
-                    <img class="qr-code-img" src="{{ qr_code }}" alt="Appointment QR Code">
-                    <p style="font-size: 0.85rem; color: var(--slate-500); margin-top: 0.5rem;">
-                        <i class="ri-qr-code-line"></i> Present this QR code at hospital check-in
+                    <img id="patientQrImg" class="qr-code-img" src="{{ qr_code }}" alt="Appointment QR Code">
+                    <p style="font-size: 0.85rem; color: var(--slate-600); margin-top: 0.5rem; font-weight: 600;">
+                        <i class="ri-qr-code-line"></i> Doctor: scan with phone camera to unlock consultation on mobile.
                     </p>
-                    <p style="font-size: 0.8rem; color: var(--slate-500); max-width: 360px; margin: 0.5rem auto 0;">
-                        The QR code contains a one-time secure pass token. It does not include your medical details.
+                    <p style="font-size: 0.8rem; color: var(--slate-500); max-width: 380px; margin: 0.35rem auto 0;">
+                        Protected by doctor password. Contains an encrypted one-time consultation token.
                     </p>
+
+                    <div style="margin-top: 1rem; display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openQrModal()" style="min-height: 42px;">
+                            <i class="ri-fullscreen-line"></i> Full-Screen QR (Easy Doctor Scan)
+                        </button>
+                        {% if scan_url %}
+                        <a href="https://wa.me/?text={{ ('🏥 *RxVault Appointment Pass*\n📋 Patient: ' ~ name ~ '\n👨‍⚕️ Doctor: ' ~ doctor_name ~ ' (' ~ department ~ ')\n🏢 Hospital: ' ~ hospital_name ~ '\n📅 Date: ' ~ date ~ ' (' ~ slot ~ ')\n🆔 Appointment ID: ' ~ appointment_id ~ '\n\n🔗 *Doctor Scan / Pass Link:*\n' ~ scan_url)|urlencode }}" class="btn btn-whatsapp btn-sm" target="_blank" rel="noopener" style="min-height: 42px; display:inline-flex; align-items:center; gap:0.35rem;">
+                            <i class="ri-whatsapp-line"></i> Share Pass on WhatsApp
+                        </a>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('{{ scan_url }}'); this.innerText='Pass Link Copied!'; setTimeout(() => this.innerHTML='<i class=\'ri-file-copy-line\'></i> Copy Doctor Pass Link', 2000)" style="min-height: 42px;">
+                            <i class="ri-file-copy-line"></i> Copy Doctor Pass Link
+                        </button>
+                        <a href="{{ scan_url }}" class="btn btn-outline btn-sm" target="_blank" style="min-height: 42px;">
+                            <i class="ri-external-link-line"></i> Open Pass Directly
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- FULL SCREEN QR MODAL FOR MOBILE DOCTOR SCAN -->
+                <div id="qrModal" class="qr-modal-overlay" onclick="closeQrModal(event)">
+                    <div class="qr-modal-card" onclick="event.stopPropagation()">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <h3 style="margin: 0; font-size: 1.15rem; color: var(--dark); display:flex; align-items:center; gap:0.35rem;">
+                                <i class="ri-qr-scan-2-line" style="color:var(--primary);"></i> Doctor Scan Pass
+                            </h3>
+                            <button type="button" class="qr-modal-close" onclick="closeQrModal()">&times;</button>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--slate-500); margin-bottom: 1rem;">
+                            Hold screen steady for the doctor to scan with their phone camera.
+                        </p>
+                        <div class="qr-modal-img-wrap">
+                            <img src="{{ qr_code }}" alt="Enlarged QR Code" style="width: 100%; max-width: 280px; height: auto; display: block; margin: 0 auto;">
+                        </div>
+                        <div style="margin-top: 0.85rem; font-family: monospace; font-size: 1.05rem; font-weight: 800; color: var(--primary);">
+                            {{ appointment_id }}
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--slate-700); margin-top: 0.25rem;">
+                            {{ name }} &bull; Dr. {{ doctor_name }}
+                        </div>
+                        <div style="margin-top: 1rem; background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.78rem;">
+                            <i class="ri-sun-fill"></i> Tip: Turn up phone screen brightness for fast camera scanning.
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <button type="button" class="btn btn-outline btn-block" onclick="closeQrModal()">Done / Close</button>
+                        </div>
+                    </div>
                 </div>
                 {% if hospital_token %}
                 <div class="alert-message">
@@ -126,6 +173,28 @@
         </div>
     </footer>
 
+    <script>
+        function openQrModal() {
+            const modal = document.getElementById("qrModal");
+            if (modal) {
+                modal.classList.add("active");
+                document.body.style.overflow = "hidden";
+            }
+        }
+        function closeQrModal(e) {
+            if (e && e.target && e.target.id !== "qrModal" && !e.target.classList.contains("qr-modal-close") && e.target.tagName !== "BUTTON") {
+                return;
+            }
+            const modal = document.getElementById("qrModal");
+            if (modal) {
+                modal.classList.remove("active");
+                document.body.style.overflow = "";
+            }
+        }
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Escape") closeQrModal();
+        });
+    </script>
 </body>
 
 </html>

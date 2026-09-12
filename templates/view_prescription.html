@@ -98,7 +98,8 @@
                     <h4 style="margin-bottom: 1rem; color: var(--primary);"><i class="ri-capsule-fill"></i> Prescribed Medicines & Regimen</h4>
 
                     {% if patient["medicine_list"] %}
-                    <div style="overflow-x: auto;">
+                    <!-- DESKTOP TABLE VIEW -->
+                    <div class="desktop-rx-table" style="overflow-x: auto;">
                         <table style="width: 100%; border-collapse: collapse; background: var(--white); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 1rem; box-shadow: var(--shadow-sm);">
                             <thead>
                                 <tr style="background: rgba(2, 132, 199, 0.12); color: var(--primary-dark); text-align: left;">
@@ -124,6 +125,35 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- MOBILE COMPACT CARDS VIEW (Optimized for Smartphone Screens) -->
+                    <div class="mobile-rx-cards">
+                        {% for item in patient["medicine_list"] %}
+                        <div class="patient-rx-card">
+                            <div class="patient-rx-card-top">
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <span class="rx-pill-badge">#{{ item.index }}</span>
+                                    <strong style="font-size: 1.05rem; color: var(--dark);">{{ item.name }}</strong>
+                                </div>
+                                <span class="rx-duration-badge"><i class="ri-calendar-line"></i> {{ item.days }}d</span>
+                            </div>
+                            <div class="patient-rx-meta-grid">
+                                <div class="rx-meta-cell">
+                                    <span class="rx-meta-lbl">Dosage</span>
+                                    <span class="rx-meta-val">{{ item.dosage }}</span>
+                                </div>
+                                <div class="rx-meta-cell">
+                                    <span class="rx-meta-lbl">Frequency</span>
+                                    <span class="rx-meta-val" style="color: var(--secondary-dark); font-weight:700;">{{ item.frequency }}</span>
+                                </div>
+                                <div class="rx-meta-cell full-width">
+                                    <span class="rx-meta-lbl">Instructions</span>
+                                    <span class="rx-meta-val">{{ item.instructions }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% else %}
                     <div class="rx-item">
                         <div class="rx-label">Medicine Prescribed</div>
@@ -143,12 +173,17 @@
                     <i class="ri-shield-check-line" style="color: var(--secondary);"></i> This digital prescription is verified & securely issued by RxVault.
                 </div>
 
-                <div style="display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap;">
-                    <button onclick="window.print()" class="btn btn-outline">
-                        <i class="ri-printer-line"></i> Print Prescription
+                <div style="display: flex; gap: 0.75rem; margin-top: 1.75rem; flex-wrap: wrap;">
+                    <button type="button" onclick="window.print()" class="btn btn-outline" style="min-height: 44px; flex: 1;">
+                        <i class="ri-printer-line"></i> Print / Save PDF
                     </button>
-                    <a href="/my-prescription" class="btn btn-secondary">
-                        <i class="ri-arrow-left-line"></i> Back to Lookup
+                    {% if not patient["is_expired"] and patient["medicine_list"] %}
+                    <button type="button" class="btn btn-whatsapp" onclick="sharePrescriptionMobile()" style="min-height: 44px; flex: 1;">
+                        <i class="ri-share-forward-line"></i> Share via WhatsApp
+                    </button>
+                    {% endif %}
+                    <a href="/my-prescription" class="btn btn-secondary" style="min-height: 44px;">
+                        <i class="ri-arrow-left-line"></i> Lookup
                     </a>
                 </div>
             </div>
@@ -168,6 +203,32 @@
         </div>
     </footer>
 
+    <script>
+        function sharePrescriptionMobile() {
+            const patientName = "{{ patient.get('name', '') }}";
+            const hospitalName = "{{ patient.get('hospital_name', '') }}";
+            const doctorName = "{{ patient.get('doctor_name', '') }}";
+            const apptId = "{{ appointment_id }}";
+            const shareText = `🏥 *RxVault Official Digital Prescription*\n` +
+                              `📋 Patient: ${patientName}\n` +
+                              `👨‍⚕️ Doctor: ${doctorName}\n` +
+                              `🏢 Hospital: ${hospitalName}\n` +
+                              `🆔 Appointment ID: ${apptId}\n` +
+                              `🔗 Lookup URL: ${window.location.origin}/my-prescription\n\n` +
+                              `⚠️ Please present this verified digital prescription at the pharmacy.`;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: `RxVault Prescription - ${patientName}`,
+                    text: shareText,
+                    url: window.location.href
+                }).catch(() => {});
+            } else {
+                const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                window.open(waUrl, '_blank');
+            }
+        }
+    </script>
 </body>
 
 </html>

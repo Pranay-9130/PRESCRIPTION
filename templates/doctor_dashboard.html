@@ -190,7 +190,7 @@
             {% endif %}
 
             <!-- DETAILED MULTI-MEDICINE PRESCRIPTION FORM -->
-            <div class="form-card">
+            <div class="form-card" id="rx-form">
                 <h3 class="section-title"><i class="ri-stethoscope-line"></i> Write Detailed Prescription</h3>
                 <p style="color: var(--slate-500); font-size: 0.9rem; margin-bottom: 1.5rem;">
                     Specify medicine name, dosage, frequency, usage instructions, and number of days for auto-expiration.
@@ -206,7 +206,7 @@
                                 <strong style="color: var(--primary); font-size: 1rem;"><i class="ri-capsule-fill"></i> Medicine #1</strong>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; margin-bottom: 0.85rem;">
+                            <div class="medicine-grid">
                                 <div>
                                     <label style="font-size: 0.85rem; font-weight: 700;">1. Medicine Name & Strength</label>
                                     <input type="text" class="form-control" name="medicine_name" placeholder="e.g. Paracetamol 500mg" required>
@@ -217,7 +217,7 @@
                                 </div>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 1rem;">
+                            <div class="medicine-grid medicine-grid-3">
                                 <div>
                                     <label style="font-size: 0.85rem; font-weight: 700;">3. Frequency</label>
                                     <input type="text" class="form-control" name="frequency" placeholder="e.g. 1-0-1 (Twice daily)" required>
@@ -249,7 +249,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-block btn-success">
-                        <i class="ri-save-3-line"></i> Save & Issue Digital Prescription
+                        <i class="ri-save-3-line"></i> Save, then send via WhatsApp or SMS
                     </button>
                 </form>
             </div>
@@ -296,7 +296,7 @@
                         <i class="ri-delete-bin-line"></i> Remove Row
                     </button>
                 </div>
-                <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; margin-bottom: 0.85rem;">
+                <div class="medicine-grid">
                     <div>
                         <label style="font-size: 0.85rem; font-weight: 700;">1. Medicine Name & Strength</label>
                         <input type="text" class="form-control" name="medicine_name" placeholder="e.g. Amoxicillin 250mg" required>
@@ -306,7 +306,7 @@
                         <input type="text" class="form-control" name="dosage" placeholder="e.g. 1 Capsule" required>
                     </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 1rem;">
+                <div class="medicine-grid medicine-grid-3">
                     <div>
                         <label style="font-size: 0.85rem; font-weight: 700;">3. Frequency</label>
                         <input type="text" class="form-control" name="frequency" placeholder="e.g. 1-1-1 (Thrice daily)" required>
@@ -328,6 +328,22 @@
             btn.closest(".medicine-row").remove();
         }
 
+        function scanDestination(decodedText) {
+            const raw = (decodedText || "").trim();
+            try {
+                const parsed = new URL(raw, window.location.origin);
+                const parts = parsed.pathname.split("/").filter(Boolean);
+                const scanAt = parts.indexOf("scan");
+                if (scanAt >= 0 && parts[scanAt + 1] === "t" && parts[scanAt + 2]) {
+                    return "/doctor/scan/t/" + encodeURIComponent(parts[scanAt + 2]);
+                }
+                if (scanAt >= 0 && parts[scanAt + 1]) {
+                    return "/doctor/scan/" + encodeURIComponent(parts[scanAt + 1]);
+                }
+            } catch (err) {}
+            return "/doctor/scan/" + encodeURIComponent(raw);
+        }
+
         let html5QrCode = null;
         function toggleScanner() {
             const modal = document.getElementById("scannerModal");
@@ -340,29 +356,17 @@
                     (decodedText) => {
                         html5QrCode.stop();
                         modal.style.display = "none";
-                        if (decodedText.startsWith("http")) {
-                            if (!navigator.onLine) {
-                                const parts = decodedText.split('/');
-                                const token = parts[parts.length - 1];
-                                if (typeof window.rxvaultScanOffline === "function") {
-                                    window.rxvaultScanOffline(token);
-                                } else {
-                                    alert("Offline scanning not ready.");
-                                }
-                                return;
+                        const dest = scanDestination(decodedText);
+                        const token = dest.split("/").pop();
+                        if (!navigator.onLine) {
+                            if (typeof window.rxvaultScanOffline === "function") {
+                                window.rxvaultScanOffline(token);
+                            } else {
+                                alert("Offline scanning not ready.");
                             }
-                            window.location.href = decodedText;
-                        } else {
-                            if (!navigator.onLine) {
-                                if (typeof window.rxvaultScanOffline === "function") {
-                                    window.rxvaultScanOffline(decodedText);
-                                } else {
-                                    alert("Offline scanning not ready.");
-                                }
-                                return;
-                            }
-                            window.location.href = "/doctor/scan/" + encodeURIComponent(decodedText);
+                            return;
                         }
+                        window.location.href = dest;
                     },
                     (errorMessage) => {}
                 ).catch(err => {
@@ -378,6 +382,13 @@
                 } else {
                     modal.style.display = "none";
                 }
+            }
+        }
+
+        if (window.location.pathname.indexOf("/doctor/scan") === 0) {
+            const form = document.getElementById("rx-form");
+            if (form) {
+                form.scrollIntoView({ behavior: "smooth", block: "start" });
             }
         }
     </script>

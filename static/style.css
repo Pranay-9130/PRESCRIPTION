@@ -1148,17 +1148,350 @@ body.has-sync-bar .navbar {
     font-size: 1.05rem;
 }
 
-/* Responsive Fixes */
+.share-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 440px;
+    margin: 0 auto 1.75rem;
+}
+
+.medicine-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.medicine-grid-3 {
+    grid-template-columns: 1fr 1.5fr 1fr;
+}
+
+.btn, .nav-link, .nav-btn {
+    min-height: 44px;
+}
+
+/* Responsive Fixes & Mobile Optimization */
 @media (max-width: 768px) {
     .hero h1 {
-        font-size: 2.35rem;
+        font-size: 1.85rem;
+    }
+    .page-header h1 {
+        font-size: 1.65rem;
+    }
+    .navbar {
+        padding: 0.5rem 0 0.35rem;
     }
     .navbar-container {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+    .brand-logo {
+        font-size: 1.35rem;
+    }
+    .brand-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1.15rem;
+        border-radius: 9px;
+    }
+    .system-status {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.6rem;
+    }
+    .nav-links {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0.35rem 0 0.2rem;
+        gap: 0.45rem;
+        scrollbar-width: none;
+    }
+    .nav-links::-webkit-scrollbar {
+        display: none;
+    }
+    .nav-link, .nav-btn, .nav-btn-secondary {
+        white-space: nowrap;
+        font-size: 0.82rem;
+        padding: 0.45rem 0.85rem;
+        min-height: 40px;
+        flex-shrink: 0;
+        border-radius: var(--radius-full);
+    }
+    .hero-actions {
         flex-direction: column;
-        gap: 1rem;
+    }
+    .hero-actions .btn,
+    .btn-block {
+        width: 100%;
+    }
+    .container,
+    .page-container {
+        padding: 1rem 0.75rem;
+        margin-top: 0.5rem;
+    }
+    .form-card,
+    .summary-card,
+    .success-card,
+    .payment-card,
+    .prescription-letterhead {
+        padding: 1.15rem 0.95rem;
+        border-radius: var(--radius);
+    }
+    .form-control,
+    .form-group input,
+    .form-group select,
+    .form-group textarea,
+    input, select, textarea {
+        font-size: 16px !important;
+        min-height: 44px;
+    }
+    .medicine-grid,
+    .medicine-grid-3 {
+        grid-template-columns: 1fr;
+    }
+    .details-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+        padding: 0.65rem 0;
+    }
+    .details-row .val {
+        text-align: left;
+        word-break: break-word;
     }
     .letterhead-header {
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.85rem;
+    }
+    .appointment-id-pill {
+        font-size: 1rem;
+        letter-spacing: 0.05em;
+        padding: 0.45rem 0.75rem;
+        word-break: break-all;
+    }
+    .qr-code-img {
+        width: min(240px, 78vw);
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 18px rgba(2, 132, 199, 0.15);
+    }
+    .date-container,
+    .slot-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .footer .container {
+        justify-content: center;
+        text-align: center;
+    }
+    .footer-credits {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .slot-grid {
+        grid-template-columns: 1fr;
+    }
+    .date-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================================================
+   QR FULL-SCREEN MODAL (High-Contrast Doctor Camera Scan)
+   ========================================================================== */
+.qr-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.qr-modal-overlay.active {
+    display: flex;
+}
+
+.qr-modal-card {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 420px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--primary-light);
+    text-align: center;
+    position: relative;
+    animation: qrModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes qrModalPop {
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.qr-modal-close {
+    background: var(--slate-100);
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--slate-600);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.qr-modal-close:hover,
+.qr-modal-close:active {
+    background: var(--slate-200);
+    color: var(--dark);
+}
+
+.qr-modal-img-wrap {
+    background: #ffffff;
+    padding: 1rem;
+    border-radius: var(--radius);
+    border: 2px solid var(--slate-200);
+    display: inline-block;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* ==========================================================================
+   PATIENT MOBILE MEDICINE CARDS (No Horizontal Scroll on Mobile)
+   ========================================================================== */
+.mobile-rx-cards {
+    display: none;
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+}
+
+.patient-rx-card {
+    background: var(--white);
+    border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius);
+    padding: 1rem 1.15rem;
+    box-shadow: var(--shadow-sm);
+    text-align: left;
+    transition: var(--transition);
+}
+
+.patient-rx-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.65rem;
+    margin-bottom: 0.65rem;
+    border-bottom: 1px solid var(--slate-100);
+    gap: 0.5rem;
+}
+
+.rx-pill-badge {
+    background: rgba(2, 132, 199, 0.12);
+    color: var(--primary-dark);
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-full);
+}
+
+.rx-duration-badge {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border: 1px solid #bae6fd;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
+
+.patient-rx-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+}
+
+.rx-meta-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.rx-meta-cell.full-width {
+    grid-column: 1 / -1;
+    margin-top: 0.25rem;
+    background: var(--slate-50);
+    padding: 0.45rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--slate-200);
+}
+
+.rx-meta-lbl {
+    font-size: 0.72rem;
+    color: var(--slate-500);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.rx-meta-val {
+    font-size: 0.9rem;
+    color: var(--dark);
+    font-weight: 600;
+}
+
+/* Touch & tap enhancements */
+button, a, input, select, textarea, .pill-opt {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 768px) {
+    .desktop-rx-table {
+        display: none !important;
+    }
+    .mobile-rx-cards {
+        display: flex !important;
+    }
+}
+
+@media print {
+    .desktop-rx-table {
+        display: block !important;
+    }
+    .mobile-rx-cards {
+        display: none !important;
+    }
+    .qr-modal-overlay {
+        display: none !important;
     }
 }

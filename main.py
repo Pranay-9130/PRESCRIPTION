@@ -6,7 +6,10 @@ import hashlib
 import hmac
 import json
 import secrets
+import io
+import base64
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
 from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -14,7 +17,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from fastapi import FastAPI, Request, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from starlette.datastructures import MutableHeaders
 
 from notifications import build_reference_message, dispatch_notification
@@ -88,6 +91,151 @@ def get_host_ip():
         return ip
     except Exception:
         return "127.0.0.1"
+
+
+def public_base_url(request: Request) -> str:
+    env = (os.getenv("PUBLIC_BASE_URL") or os.getenv("RXVAULT_PUBLIC_URL") or "").strip().rstrip("/")
+    if env:
+        return env
+    try:
+        if "get_setting" in globals():
+            db_val = (get_setting("public_base_url") or "").strip().rstrip("/")
+            if db_val:
+                return db_val
+    except Exception:
+        pass
+
+    proto = (
+        request.headers.get("x-forwarded-proto")
+        or request.headers.get("x-forwarded-protocol")
+        or request.headers.get("x-url-scheme")
+        or request.url.scheme
+        or "http"
+    ).split(",")[0].strip()
+
+    cf_visitor = request.headers.get("cf-visitor")
+    if cf_visitor and "https" in cf_visitor:
+        proto = "https"
+
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+        or request.url.netloc
+    ).split(",")[0].strip()
+
+    if not host:
+        return str(request.base_url).rstrip("/")
+
+    host_name = host.split(":")[0].strip()
+    port = host.split(":")[1].strip() if ":" in host else ""
+    if host_name in ("localhost", "127.0.0.1"):
+        lan_ip = get_host_ip()
+        if lan_ip and lan_ip != "127.0.0.1":
+            port_suffix = f":{port}" if port else ""
+            return f"{proto}://{lan_ip}{port_suffix}".rstrip("/")
+
+    return f"{proto}://{host}".rstrip("/")
+
+
+def request_is_https(request: Request) -> bool:
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "http").split(",")[0].strip().lower()
+    return proto == "https"
+
+
+def scan_path_for_token(token: str) -> str:
+    return f"/doctor/scan/t/{token}"
+
+
+def safe_next_url(next_path: str, default: str = "/doctor") -> str:
+    value = (next_path or "").strip()
+    if not value.startswith("/") or value.startswith("//") or "\\" in value or "://" in value:
+        return default
+    if not value.startswith("/doctor"):
+        return default
+    return value
+
+
+def set_doctor_session_cookie(response, doctor_id, request: Request):
+    response.set_cookie(
+        key="doctor_session",
+        value=str(doctor_id),
+        max_age=86400 * 7,
+        httponly=True,
+        samesite="lax",
+        secure=request_is_https(request),
+        path="/",
+    )
+
+
+def digits_only(value: str) -> str:
+    return "".join(ch for ch in (value or "") if ch.isdigit())
+
+
+def whatsapp_phone(mobile: str) -> str:
+    digits = digits_only(mobile)
+    if len(digits) == 10:
+        return "91" + digits
+    if digits.startswith("0") and len(digits) == 11:
+        return "91" + digits[1:]
+    return digits
+
+
+def build_prescription_share(patient, request: Request) -> dict:
+    medicine_str = getattr(patient, "medicine", "") if not isinstance(patient, dict) else patient.get("medicine", "")
+    items = parse_medicine_json(medicine_str)
+    base_url = public_base_url(request)
+
+    patient_name = getattr(patient, "name", "") if not isinstance(patient, dict) else patient.get("name", "")
+    hospital_name = getattr(patient, "hospital_name", "") if not isinstance(patient, dict) else patient.get("hospital_name", "")
+    doctor_name = getattr(patient, "doctor_name", "") if not isinstance(patient, dict) else patient.get("doctor_name", "")
+    appointment_id = getattr(patient, "appointment_id", "") if not isinstance(patient, dict) else patient.get("appointment_id", "")
+    prescription_ref = getattr(patient, "prescription_ref", "") if not isinstance(patient, dict) else patient.get("prescription_ref", "")
+    date_str = getattr(patient, "date", "") if not isinstance(patient, dict) else patient.get("date", "")
+    duration = getattr(patient, "max_duration_days", 5) if not isinstance(patient, dict) else patient.get("max_duration_days", 5)
+    instructions = getattr(patient, "instructions", "") if not isinstance(patient, dict) else patient.get("instructions", "")
+    mobile = getattr(patient, "mobile", "") if not isinstance(patient, dict) else patient.get("mobile", "")
+
+    lines = [
+        f"🏥 *{hospital_name or 'RxVault Accredited Hospital'}*",
+        f"📋 *Digital Prescription for {patient_name}*",
+        f"👨‍⚕️ Doctor: {doctor_name}",
+        f"🆔 Appointment ID: {appointment_id}",
+        f"🔖 Reference: {prescription_ref or 'N/A'}",
+        f"📅 Date: {date_str or datetime.now().strftime('%Y-%m-%d')}",
+        "",
+        "💊 *Prescribed Medicines:*",
+    ]
+    for i, item in enumerate(items, start=1):
+        name = item.get("name", "Medicine")
+        dosage = item.get("dosage", "1 Unit")
+        freq = item.get("frequency", "As directed")
+        instr = item.get("instructions", "After meals")
+        days = item.get("days", duration or 5)
+        lines.append(f"{i}. *{name}* ({dosage})")
+        lines.append(f"   Timing: {freq} | {instr} | For {days} days")
+
+    if instructions:
+        lines.append("")
+        lines.append(f"📝 *Doctor's Advice:* {instructions}")
+
+    lines.append("")
+    lines.append(f"⏳ *Prescription Validity:* Valid for {duration or 5} days (Auto-expires)")
+    lines.append(f"🔗 *View Official Verified Prescription:*")
+    lines.append(f"{base_url}/my-prescription")
+    lines.append("")
+    lines.append("⚠️ _Please take medicines strictly as advised. In case of emergency, contact the hospital immediately._")
+
+    text = "\n".join(lines)
+    phone = whatsapp_phone(mobile)
+    sms_number = digits_only(mobile)
+    sms_text = text.replace("*", "").replace("_", "")
+
+    return {
+        "text": text,
+        "sms_href": f"sms:{sms_number}?&body={quote(sms_text)}",
+        "whatsapp_href": f"https://wa.me/{phone}?text={quote(text)}",
+        "mobile": mobile,
+    }
 
 
 def parse_medicine_json(medicine_str):
@@ -528,12 +676,37 @@ def assign_qr_token(appointment, ttl_hours=None):
     return appointment.qr_token
 
 
+def generate_qr_data_uri(scan_url: str) -> str:
+    try:
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=8,
+            border=3,
+        )
+        qr.add_data(scan_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#0f172a", back_color="#ffffff")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{encoded}"
+    except Exception:
+        return ""
+
+
 def save_qr_image(scan_url, appointment_id):
-    qr = qrcode.make(scan_url)
-    qr_filename = f"{appointment_id}.png"
-    qr_path = os.path.join("static", "qr_codes", qr_filename)
-    qr.save(qr_path)
-    return f"/static/qr_codes/{qr_filename}"
+    data_uri = generate_qr_data_uri(scan_url)
+    try:
+        os.makedirs("static/qr_codes", exist_ok=True)
+        qr = qrcode.make(scan_url)
+        qr_filename = f"{appointment_id}.png"
+        qr_path = os.path.join("static", "qr_codes", qr_filename)
+        qr.save(qr_path)
+    except Exception:
+        pass
+    return data_uri if data_uri else f"/static/qr_codes/{appointment_id}.png"
 
 
 def patient_summary(patient, include_history=False, db=None, hide_expired_meds=False):
@@ -946,8 +1119,7 @@ def payment_success(
     db.add(new_appointment)
     db.commit()
 
-    host_ip = get_host_ip()
-    scan_url = f"http://{host_ip}:8000/doctor/scan/t/{new_appointment.qr_token}"
+    scan_url = f"{public_base_url(request)}{scan_path_for_token(new_appointment.qr_token)}"
     qr_code = save_qr_image(scan_url, appointment_id)
     hospital_token = new_appointment.hospital_token
     db.close()
@@ -968,6 +1140,7 @@ def payment_success(
             amount=amount,
             qr_code=qr_code,
             hospital_token=hospital_token,
+            scan_url=scan_url,
         )
     )
 
@@ -1055,14 +1228,19 @@ def doctor_register_submit(
 
 
 @app.get("/doctor/login")
-def doctor_login_page(request: Request):
+def doctor_login_page(request: Request, next: str = ""):
+    next_url = safe_next_url(next)
     doctor = get_current_doctor(request)
     if doctor:
-        return RedirectResponse(url="/doctor", status_code=303)
+        return RedirectResponse(url=next_url, status_code=303)
     return templates.TemplateResponse(
         request=request,
         name="doctor_login.html",
-        context=page_ctx(request)
+        context=page_ctx(
+            request,
+            next_url=next_url,
+            scan_unlock="/doctor/scan" in next_url,
+        )
     )
 
 
@@ -1070,8 +1248,10 @@ def doctor_login_page(request: Request):
 def doctor_login_submit(
     request: Request,
     medical_number: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
+    next: str = Form(""),
 ):
+    next_url = safe_next_url(next)
     medical_number = medical_number.strip().upper()
     db = SessionLocal()
 
@@ -1081,14 +1261,19 @@ def doctor_login_submit(
         return templates.TemplateResponse(
             request=request,
             name="doctor_login.html",
-            context=page_ctx(request, error="Invalid Medical License Number or Password.")
+            context=page_ctx(
+                request,
+                error="Invalid Medical License Number or Password.",
+                next_url=next_url,
+                scan_unlock="/doctor/scan" in next_url,
+            )
         )
 
     doc_id = doc.id
     db.close()
 
-    response = RedirectResponse(url="/doctor", status_code=303)
-    response.set_cookie(key="doctor_session", value=str(doc_id), max_age=86400 * 7, httponly=True, samesite="lax")
+    response = RedirectResponse(url=next_url, status_code=303)
+    set_doctor_session_cookie(response, doc_id, request)
     return response
 
 
@@ -1135,42 +1320,122 @@ def load_patient_for_doctor(db, doctor, appointment_id):
     return patient_summary(patient), previous_visits, None
 
 
+@app.get("/qr/{appointment_id}.png")
+def serve_appointment_qr_image(appointment_id: str):
+    appointment_id = appointment_id.strip().upper()
+    db = SessionLocal()
+    appointment = db.query(Appointment).filter(Appointment.appointment_id == appointment_id).first()
+    db.close()
+    token = appointment.qr_token if appointment and appointment.qr_token else appointment_id
+    scan_url = f"/doctor/scan/t/{token}"
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=3)
+    qr.add_data(scan_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#0f172a", back_color="#ffffff")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@app.get("/qr/token/{token}.png")
+def serve_token_qr_image(token: str):
+    token = token.strip()
+    scan_url = f"/doctor/scan/t/{token}"
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=3)
+    qr.add_data(scan_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#0f172a", back_color="#ffffff")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
 @app.get("/doctor/scan/t/{token}")
 def scan_appointment_token(token: str, request: Request):
+    token = (token or "").strip()
     doctor = get_current_doctor(request)
-    if not doctor:
-        return RedirectResponse(url="/doctor/login", status_code=303)
 
     db = SessionLocal()
     patient_row = db.query(Appointment).filter(Appointment.qr_token == token).first()
-    error = None
-    patient_data = None
-    previous_visits = []
-    appointment_id = None
     if not patient_row:
-        error = "This QR pass is invalid or was not issued by RxVault."
-    else:
-        valid, message = qr_token_is_valid(patient_row)
-        if not valid:
-            error = message
-            appointment_id = patient_row.appointment_id
-        elif not doctor_can_access_appointment(doctor, patient_row):
-            error = "You are not authorized to view this patient. Sign in as the assigned doctor or hospital clinician."
-            appointment_id = patient_row.appointment_id
-        else:
-            appointment_id = patient_row.appointment_id
-            patient_data = patient_summary(patient_row)
-            previous_visits = get_patient_history(patient_row.mobile, appointment_id, db)
+        patient_row = db.query(Appointment).filter(Appointment.appointment_id == token.upper()).first()
+
+    if not patient_row:
+        db.close()
+        if not doctor:
+            next_url = scan_path_for_token(token)
+            return RedirectResponse(url=f"/doctor/login?next={quote(next_url, safe='/')}", status_code=303)
+        return render_doctor_dashboard(request, doctor, None, token, [], "This QR pass is invalid or was not issued by RxVault.")
+
+    valid, message = qr_token_is_valid(patient_row)
+    if not valid:
+        db.close()
+        if not doctor:
+            return templates.TemplateResponse(
+                request=request,
+                name="doctor_unlock.html",
+                context=page_ctx(request, patient=patient_row, token=token, error=message),
+            )
+        return render_doctor_dashboard(request, doctor, None, patient_row.appointment_id, [], message)
+
+    if not doctor:
+        patient_data = {
+            "appointment_id": patient_row.appointment_id,
+            "name": patient_row.name,
+            "gender": patient_row.gender,
+            "mobile": patient_row.mobile,
+            "problem": patient_row.problem,
+            "hospital_name": patient_row.hospital_name,
+            "hospital_id": patient_row.hospital_id,
+            "doctor_name": patient_row.doctor_name,
+            "doctor_id": patient_row.doctor_id,
+            "department": patient_row.department,
+            "date": patient_row.date,
+            "slot": patient_row.slot,
+        }
+        db.close()
+        return templates.TemplateResponse(
+            request=request,
+            name="doctor_unlock.html",
+            context=page_ctx(request, patient=patient_data, token=token),
+        )
+
+    if not doctor_can_access_appointment(doctor, patient_row):
+        patient_data = {
+            "appointment_id": patient_row.appointment_id,
+            "name": patient_row.name,
+            "gender": patient_row.gender,
+            "mobile": patient_row.mobile,
+            "problem": patient_row.problem,
+            "hospital_name": patient_row.hospital_name,
+            "hospital_id": patient_row.hospital_id,
+            "doctor_name": patient_row.doctor_name,
+            "doctor_id": patient_row.doctor_id,
+            "department": patient_row.department,
+            "date": patient_row.date,
+            "slot": patient_row.slot,
+        }
+        db.close()
+        return templates.TemplateResponse(
+            request=request,
+            name="doctor_unlock.html",
+            context=page_ctx(
+                request,
+                patient=patient_data,
+                token=token,
+                error=f"Signed in as Dr. {doctor.name}, but this appointment is assigned to {patient_row.doctor_name}. Enter the assigned doctor's password to switch.",
+            ),
+        )
+
+    appointment_id = patient_row.appointment_id
     db.close()
-    return render_doctor_dashboard(request, doctor, patient_data, appointment_id, previous_visits, error)
+    return RedirectResponse(url=f"/doctor/consultation/{appointment_id}", status_code=303)
 
 
 @app.get("/doctor/scan/{appointment_id}")
 def scan_appointment_qr(appointment_id: str, request: Request):
-    doctor = get_current_doctor(request)
-    if not doctor:
-        return RedirectResponse(url="/doctor/login", status_code=303)
-
     appointment_id = appointment_id.strip()
     db = SessionLocal()
     patient_row = db.query(Appointment).filter(Appointment.qr_token == appointment_id).first()
@@ -1178,23 +1443,162 @@ def scan_appointment_qr(appointment_id: str, request: Request):
         db.close()
         return RedirectResponse(url=f"/doctor/scan/t/{appointment_id}", status_code=303)
 
-    appointment_id = appointment_id.upper()
-    patient_row = db.query(Appointment).filter(Appointment.appointment_id == appointment_id).first()
-    error = None
-    patient_data = None
-    previous_visits = []
+    patient_row = db.query(Appointment).filter(Appointment.appointment_id == appointment_id.upper()).first()
+    if patient_row and patient_row.qr_token:
+        db.close()
+        return RedirectResponse(url=f"/doctor/scan/t/{patient_row.qr_token}", status_code=303)
+
+    doctor = get_current_doctor(request)
     if not patient_row:
-        error = f"No appointment found matching Appointment ID: {appointment_id}"
-    elif not doctor_can_access_appointment(doctor, patient_row):
-        error = "You are not authorized to view this patient."
-    else:
-        if patient_row.qr_token and (patient_row.qr_token_status or "").upper() == "INVALIDATED":
-            error = "This QR pass was invalidated after consultation. Search by Appointment ID from the dashboard if you are the assigned clinician."
-        else:
-            patient_data = patient_summary(patient_row)
-            previous_visits = get_patient_history(patient_row.mobile, appointment_id, db)
+        db.close()
+        if not doctor:
+            next_url = f"/doctor/scan/{appointment_id}"
+            return RedirectResponse(url=f"/doctor/login?next={quote(next_url, safe='/')}", status_code=303)
+        return render_doctor_dashboard(request, doctor, None, appointment_id, [], f"No appointment found matching Appointment ID: {appointment_id}")
+
+    if not doctor:
+        patient_data = {
+            "appointment_id": patient_row.appointment_id,
+            "name": patient_row.name,
+            "gender": patient_row.gender,
+            "mobile": patient_row.mobile,
+            "problem": patient_row.problem,
+            "hospital_name": patient_row.hospital_name,
+            "hospital_id": patient_row.hospital_id,
+            "doctor_name": patient_row.doctor_name,
+            "doctor_id": patient_row.doctor_id,
+            "department": patient_row.department,
+            "date": patient_row.date,
+            "slot": patient_row.slot,
+        }
+        db.close()
+        return templates.TemplateResponse(
+            request=request,
+            name="doctor_unlock.html",
+            context=page_ctx(request, patient=patient_data, token=patient_row.qr_token or appointment_id),
+        )
+
+    if not doctor_can_access_appointment(doctor, patient_row):
+        db.close()
+        return render_doctor_dashboard(request, doctor, None, appointment_id, [], "You are not authorized to view this patient.")
+
+    target_id = patient_row.appointment_id
     db.close()
-    return render_doctor_dashboard(request, doctor, patient_data, appointment_id, previous_visits, error)
+    return RedirectResponse(url=f"/doctor/consultation/{target_id}", status_code=303)
+
+
+@app.post("/doctor/unlock-scan")
+def unlock_scanned_appointment(
+    request: Request,
+    token: str = Form(...),
+    password: str = Form(...),
+    appointment_id: str = Form(""),
+    doctor_id: str = Form(""),
+    medical_number: str = Form(""),
+):
+    token = token.strip()
+    db = SessionLocal()
+    patient_row = db.query(Appointment).filter(Appointment.qr_token == token).first()
+    if not patient_row and appointment_id:
+        patient_row = db.query(Appointment).filter(Appointment.appointment_id == appointment_id.strip().upper()).first()
+
+    if not patient_row:
+        db.close()
+        return templates.TemplateResponse(
+            request=request,
+            name="doctor_unlock.html",
+            context=page_ctx(request, error="Appointment record not found for this QR pass."),
+        )
+
+    matched_doc = None
+    if medical_number.strip():
+        med = medical_number.strip().upper()
+        doc = db.query(Doctor).filter(Doctor.medical_number == med).first()
+        if doc and verify_password(password, doc.password_hash):
+            matched_doc = doc
+    else:
+        doc = None
+        if patient_row.doctor_id:
+            doc = db.query(Doctor).filter(Doctor.id == patient_row.doctor_id).first()
+        if not doc and patient_row.doctor_name:
+            doc = db.query(Doctor).filter(Doctor.name == patient_row.doctor_name).first()
+        if doc and verify_password(password, doc.password_hash):
+            matched_doc = doc
+        else:
+            if patient_row.hospital_id:
+                hospital_docs = db.query(Doctor).filter(Doctor.hospital_id == patient_row.hospital_id).all()
+                for h_doc in hospital_docs:
+                    if verify_password(password, h_doc.password_hash):
+                        matched_doc = h_doc
+                        break
+
+    if not matched_doc:
+        patient_data = {
+            "appointment_id": patient_row.appointment_id,
+            "name": patient_row.name,
+            "gender": patient_row.gender,
+            "mobile": patient_row.mobile,
+            "problem": patient_row.problem,
+            "hospital_name": patient_row.hospital_name,
+            "doctor_name": patient_row.doctor_name,
+            "doctor_id": patient_row.doctor_id,
+            "department": patient_row.department,
+            "date": patient_row.date,
+            "slot": patient_row.slot,
+        }
+        db.close()
+        return templates.TemplateResponse(
+            request=request,
+            name="doctor_unlock.html",
+            context=page_ctx(
+                request,
+                patient=patient_data,
+                token=token,
+                error="Incorrect doctor password. Access denied.",
+            ),
+        )
+
+    doc_id = matched_doc.id
+    target_appointment_id = patient_row.appointment_id
+    db.close()
+
+    response = RedirectResponse(url=f"/doctor/consultation/{target_appointment_id}", status_code=303)
+    set_doctor_session_cookie(response, doc_id, request)
+    return response
+
+
+@app.get("/doctor/consultation/{appointment_id}")
+def doctor_consultation_page(appointment_id: str, request: Request):
+    doctor = get_current_doctor(request)
+    appointment_id = appointment_id.strip().upper()
+    if not doctor:
+        return RedirectResponse(url=f"/doctor/login?next=/doctor/consultation/{appointment_id}", status_code=303)
+
+    db = SessionLocal()
+    patient_row = db.query(Appointment).filter(Appointment.appointment_id == appointment_id).first()
+    if not patient_row:
+        db.close()
+        return render_doctor_dashboard(request, doctor, None, appointment_id, [], f"No appointment found for ID: {appointment_id}")
+
+    if not doctor_can_access_appointment(doctor, patient_row):
+        db.close()
+        return render_doctor_dashboard(request, doctor, None, appointment_id, [], "You are not authorized to consult for this patient.")
+
+    patient_data = patient_summary(patient_row)
+    previous_visits = get_patient_history(patient_row.mobile, appointment_id, db)
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="doctor_consultation.html",
+        context=page_ctx(
+            request,
+            current_doctor=doctor,
+            patient=patient_data,
+            appointment_id=appointment_id,
+            previous_visits=previous_visits,
+        ),
+    )
 
 
 @app.post("/doctor/search")
@@ -1250,10 +1654,12 @@ async def save_prescription(request: Request):
     patient = db.query(Appointment).filter(Appointment.appointment_id == appointment_id).first()
     patient_data = None
     notice = None
+    share_text = ""
     if patient and doctor_can_access_appointment(doctor, patient) and medicine_items:
         apply_prescription(patient, medicine_items, general_instructions, notes)
         db.commit()
         items = parse_medicine_json(patient.medicine)
+        share = build_prescription_share(patient, request)
         patient_data = {
             "name": patient.name,
             "hospital_name": patient.hospital_name,
@@ -1264,8 +1670,19 @@ async def save_prescription(request: Request):
             "medicine_list": items,
             "max_duration_days": patient.max_duration_days,
             "prescription_ref": patient.prescription_ref,
+            "mobile": patient.mobile,
+            "share_sms": share["sms_href"],
+            "share_whatsapp": share["whatsapp_href"],
         }
+        share_text = share["text"]
         notice = send_prescription_notice(patient)
+    elif patient and not medicine_items:
+        db.close()
+        return RedirectResponse(url=f"/doctor/consultation/{appointment_id}?error=Please+prescribe+at+least+one+medicine", status_code=303)
+    elif not patient:
+        db.close()
+        return render_doctor_dashboard(request, doctor, None, appointment_id, [], "Appointment not found")
+
     db.close()
 
     return templates.TemplateResponse(
@@ -1277,6 +1694,7 @@ async def save_prescription(request: Request):
             patient=patient_data,
             appointment_id=appointment_id,
             notification=notice,
+            share_text=share_text,
         )
     )
 
@@ -1350,13 +1768,14 @@ async def sync_prescription(request: Request):
             synced_at=datetime.now().isoformat(),
             error_status="Server already has a prescription for this appointment",
         )
+        existing_ref = patient.prescription_ref
         db.add(ledger)
         db.commit()
         db.close()
         return {
             "status": "CONFLICT",
             "appointment_id": appointment_id,
-            "prescription_ref": patient.prescription_ref,
+            "prescription_ref": existing_ref,
             "message": "A prescription already exists on the server. Local duplicate was not applied.",
         }
 
@@ -1372,12 +1791,14 @@ async def sync_prescription(request: Request):
     )
     db.add(ledger)
     db.commit()
+    ref = patient.prescription_ref
+    server_id = patient.id
     notice = send_prescription_notice(patient)
     result = {
         "status": "SYNCED",
         "appointment_id": appointment_id,
-        "prescription_ref": patient.prescription_ref,
-        "server_record_id": patient.id,
+        "prescription_ref": ref,
+        "server_record_id": server_id,
         "notification": notice,
     }
     db.close()

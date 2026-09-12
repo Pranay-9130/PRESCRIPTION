@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Doctor QR Pass Unlock - RxVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css">
+    <style>
+        .unlock-wrapper {
+            min-height: calc(100vh - 140px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .unlock-card {
+            width: 100%;
+            max-width: 480px;
+            background: var(--white);
+            border-radius: var(--radius-md);
+            padding: 2rem 1.5rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--slate-200);
+            position: relative;
+            overflow: hidden;
+        }
+        .unlock-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        .patient-badge-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1.5px solid #bae6fd;
+            border-radius: var(--radius);
+            padding: 1.15rem;
+            margin: 1.25rem 0 1.5rem;
+            text-align: left;
+        }
+        .patient-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--slate-600);
+        }
+        .patient-name-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+        .doctor-assigned-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--white);
+            border: 1px solid #7dd3fc;
+            color: var(--primary-dark);
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 0.3rem 0.7rem;
+            border-radius: var(--radius-full);
+            margin-top: 0.4rem;
+        }
+        .toggle-pwd-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--slate-500);
+            cursor: pointer;
+            font-size: 1.25rem;
+            padding: 4px;
+        }
+        .pwd-input-wrap {
+            position: relative;
+        }
+        .pwd-input-wrap input {
+            padding-right: 42px !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon"><i class="ri-heart-pulse-fill"></i></div>
+                <span>RxVault</span>
+            </a>
+            <div class="system-status">
+                <span class="status-dot"></span> Doctor Consultation Pass
+            </div>
+            <ul class="nav-links">
+                <li><a href="/" class="nav-link"><i class="ri-home-4-line"></i> Home</a></li>
+                <li><a href="/doctor/login" class="nav-link nav-btn"><i class="ri-user-stethoscope-line"></i> Doctor Portal</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- UNLOCK CONTAINER -->
+    <div class="unlock-wrapper">
+        <div class="unlock-card">
+
+            <div style="text-align: center;">
+                <div style="width: 58px; height: 58px; background: rgba(2, 132, 199, 0.12); color: var(--primary); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.85rem; margin-bottom: 0.85rem;">
+                    <i class="ri-shield-keyhole-fill"></i>
+                </div>
+                <h1 style="font-size: 1.55rem; margin-bottom: 0.35rem;">Scanned QR Pass</h1>
+                <p style="color: var(--slate-500); font-size: 0.9rem;">
+                    This patient record is protected. Enter the attending doctor password to unlock consultation and prescribe.
+                </p>
+            </div>
+
+            {% if error %}
+            <div class="alert-message alert-danger" style="margin-top: 1rem;">
+                <i class="ri-error-warning-line"></i> {{ error }}
+            </div>
+            {% endif %}
+
+            {% if patient %}
+            <!-- PATIENT SUMMARY CARD -->
+            <div class="patient-badge-card">
+                <div class="patient-meta-row">
+                    <span><i class="ri-hashtag"></i> <strong>{{ patient.appointment_id }}</strong></span>
+                    <span><i class="ri-calendar-line"></i> {{ patient.date }} ({{ patient.slot }})</span>
+                </div>
+                <div class="patient-name-title">
+                    <i class="ri-user-heart-line" style="color: var(--primary);"></i> {{ patient.name }}
+                    <span style="font-size: 0.85rem; font-weight: 500; color: var(--slate-600);">({{ patient.gender }})</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--slate-600); margin-top: 0.25rem;">
+                    <i class="ri-hospital-line"></i> {{ patient.hospital_name }} &bull; {{ patient.department }}
+                </div>
+                {% if patient.problem %}
+                <div style="font-size: 0.85rem; color: var(--slate-700); margin-top: 0.35rem; background: rgba(255,255,255,0.7); padding: 0.3rem 0.5rem; border-radius: var(--radius-sm);">
+                    <strong>Complaint:</strong> {{ patient.problem }}
+                </div>
+                {% endif %}
+                <div class="doctor-assigned-pill">
+                    <i class="ri-user-stethoscope-line"></i> Attending: <strong>{{ patient.doctor_name }}</strong>
+                </div>
+            </div>
+
+            <!-- UNLOCK FORM -->
+            <form method="POST" action="/doctor/unlock-scan">
+                <input type="hidden" name="token" value="{{ token }}">
+                <input type="hidden" name="doctor_id" value="{{ patient.doctor_id if patient.doctor_id else '' }}">
+                <input type="hidden" name="appointment_id" value="{{ patient.appointment_id }}">
+
+                <div class="form-group" style="text-align: left;">
+                    <label for="doctor_pwd">
+                        <i class="ri-lock-password-line"></i> Password for <strong>{{ patient.doctor_name }}</strong>
+                    </label>
+                    <div class="pwd-input-wrap">
+                        <input type="password" id="doctor_pwd" name="password" class="form-control" placeholder="Enter doctor password" required autocomplete="current-password" autofocus>
+                        <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('doctor_pwd', this)" aria-label="Toggle password visibility">
+                            <i class="ri-eye-line"></i>
+                        </button>
+                    </div>
+                    <small style="color: var(--slate-400); font-size: 0.78rem; display: block; margin-top: 0.25rem;">
+                        Default demo doctor password is <code style="background:#f1f5f9; padding:2px 5px; border-radius:4px;">doctor123</code>
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-block btn-lg" style="margin-top: 1.25rem; font-size: 1.05rem;">
+                    <i class="ri-lock-unlock-line"></i> Unlock & Write Prescription
+                </button>
+            </form>
+
+            <div style="margin-top: 1.5rem; text-align: center; border-top: 1px dashed var(--slate-200); padding-top: 1rem;">
+                <button type="button" class="btn btn-link" style="font-size: 0.85rem; color: var(--slate-600); text-decoration: underline;" onclick="document.getElementById('altDoctorLogin').style.display = document.getElementById('altDoctorLogin').style.display === 'none' ? 'block' : 'none'">
+                    Not {{ patient.doctor_name }}? Sign in with License Number
+                </button>
+
+                <div id="altDoctorLogin" style="display: none; margin-top: 1rem; text-align: left; background: var(--slate-50); padding: 1rem; border-radius: var(--radius); border: 1px solid var(--slate-200);">
+                    <form method="POST" action="/doctor/unlock-scan">
+                        <input type="hidden" name="token" value="{{ token }}">
+                        <input type="hidden" name="appointment_id" value="{{ patient.appointment_id }}">
+                        <div class="form-group">
+                            <label style="font-size: 0.85rem;"><i class="ri-shield-user-line"></i> Medical License ID</label>
+                            <input type="text" name="medical_number" class="form-control" placeholder="e.g. MC-10001" required>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.85rem;"><i class="ri-lock-line"></i> Password</label>
+                            <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="btn btn-block btn-outline">
+                            <i class="ri-login-circle-line"></i> Login with License ID
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {% else %}
+            <!-- UNKNOWN PASS -->
+            <div style="text-align: center; margin: 2rem 0;">
+                <p style="color: var(--danger); font-weight: 600;">No appointment found for this QR pass token.</p>
+                <a href="/doctor/login" class="btn btn-outline" style="margin-top: 1rem;">
+                    <i class="ri-login-box-line"></i> Go to Doctor Login
+                </a>
+            </div>
+            {% endif %}
+
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <a href="/" class="back-link" style="justify-content: center; font-size: 0.85rem;">
+                    <i class="ri-arrow-left-line"></i> Return to RxVault Home
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <p>&copy; 2026 RxVault Digital Healthcare System. All rights reserved.</p>
+            <div class="footer-credits">
+                <span><i class="ri-user-smile-fill" style="color: var(--primary);"></i> <strong>P. Pranay Kumar Reddy</strong></span>
+                <span><a href="tel:7207795562" class="footer-link"><i class="ri-phone-fill" style="color: var(--secondary);"></i> 7207795562</a></span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'ri-eye-off-line';
+            } else {
+                input.type = 'password';
+                icon.className = 'ri-eye-line';
+            }
+        }
+    </script>
+</body>
+
+</html>
