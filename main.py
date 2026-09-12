@@ -230,28 +230,25 @@ def build_prescription_share(patient, request: Request) -> dict:
     lines = [
         f"🏥 {h_name}",
         "💙 Official Digital Prescription Notice",
-        "✨ “Your health deserves care you can trust — and a prescription you can always find.”",
         f"Dear {patient_name} 👋",
         "Your attending doctor,",
         f"👨‍⚕️ {doctor_name},",
         "has prepared and digitally signed your prescription.",
+        "",
         "🔐 YOUR RxVAULT IS READY",
         f"🆔 Appointment ID: {appointment_id}",
         f"📱 Registered Mobile: {masked_mobile}",
         f"🔖 Security Ref: {prescription_ref or 'RX-VAULT'}",
         f"📅 Consultation Date: {formatted_date or datetime.now().strftime('%d %b %Y')}",
-        f"💊 Prescribed Regimen: {med_text}",
-        f"⏳ Validity: Active for {duration or 5} Days",
+        "",
         "━━━━━━━━━━━━━━━━━━",
-        "🔒 SECURE ACCESS",
-        "Your complete prescription is securely stored in your personal RxVault.",
-        "🔗 Open RxVault:",
-        f"{portal_rx_url}",
-        "Enter your Appointment ID and Registered Mobile Number to securely access your prescription.",
+        "🔒 To view your full prescription (medicines & instructions), open the link below and enter your Appointment ID and Registered Mobile Number:",
+        "",
+        f"🔗 {portal_rx_url}",
         "━━━━━━━━━━━━━━━━━━",
-        "💙 RxVault",
-        "Your prescription. Your privacy. Your peace of mind.",
-        "⚠️ Please take medicines strictly as advised by your doctor. In case of an emergency, contact your healthcare provider immediately."
+        "",
+        "💙 RxVault — Your prescription. Your privacy. Your peace of mind.",
+        "⚠️ In case of an emergency, contact your healthcare provider immediately."
     ]
 
     text = "\n".join(lines)
