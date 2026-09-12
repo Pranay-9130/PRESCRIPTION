@@ -1840,6 +1840,30 @@ def patient_prescription_pack(patient):
     }
 
 
+def find_patient_by_appointment_and_mobile(db, appointment_id: str, mobile: str):
+    if not appointment_id or not mobile:
+        return None
+    clean_id = appointment_id.strip().upper()
+    clean_mob = digits_only(mobile)
+    if not clean_id or not clean_mob:
+        return None
+
+    possible_ids = [clean_id]
+    if clean_id.startswith("RX-"):
+        possible_ids.append(clean_id[3:])
+    else:
+        possible_ids.append(f"RX-{clean_id}")
+
+    candidates = db.query(Appointment).filter(Appointment.appointment_id.in_(possible_ids)).all()
+    for p in candidates:
+        db_mob = digits_only(p.mobile)
+        if db_mob == clean_mob or p.mobile == mobile.strip():
+            return p
+        if len(clean_mob) >= 10 and len(db_mob) >= 10 and clean_mob[-10:] == db_mob[-10:]:
+            return p
+    return None
+
+
 @app.get("/my-prescription")
 def my_prescription_page(
     request: Request,
@@ -1853,13 +1877,7 @@ def my_prescription_page(
 
     if target_id and target_mobile:
         db = SessionLocal()
-        clean_target = digits_only(target_mobile)
-        all_matches = db.query(Appointment).filter(Appointment.appointment_id == target_id).all()
-        patient = None
-        for p in all_matches:
-            if digits_only(p.mobile) == clean_target or p.mobile == target_mobile:
-                patient = p
-                break
+        patient = find_patient_by_appointment_and_mobile(db, target_id, target_mobile)
 
         if patient:
             if patient.prescription_status == "Saved":
@@ -1879,6 +1897,7 @@ def my_prescription_page(
                     "prescription_date": patient.prescription_date,
                     "prescription_expiry_date": pack["expiry_date"],
                 }
+                real_id = patient.appointment_id
                 db.close()
                 return templates.TemplateResponse(
                     request=request,
@@ -1886,7 +1905,7 @@ def my_prescription_page(
                     context=page_ctx(
                         request,
                         patient=patient_data,
-                        appointment_id=target_id,
+                        appointment_id=real_id,
                         prescription_pack=json_safe(pack),
                     )
                 )
@@ -1909,7 +1928,7 @@ def my_prescription_page(
                 request,
                 appointment_id=target_id,
                 mobile=target_mobile,
-                message="Prescription record not found. Please verify your Appointment ID and mobile number."
+                message="Invalid Appointment ID or Mobile Number."
             )
         )
 
@@ -1922,15 +1941,14 @@ def my_prescription_page(
             mobile=target_mobile if target_mobile else "",
         )
     )
+
+
 @app.post("/my-prescription")
 def view_prescription(request: Request, appointment_id: str = Form(...), mobile: str = Form(...)):
     appointment_id = appointment_id.strip().upper()
     db = SessionLocal()
 
-    patient = db.query(Appointment).filter(
-        Appointment.appointment_id == appointment_id,
-        Appointment.mobile == mobile
-    ).first()
+    patient = find_patient_by_appointment_and_mobile(db, appointment_id, mobile)
 
     if patient:
         if patient.prescription_status == "Saved":
@@ -1950,6 +1968,7 @@ def view_prescription(request: Request, appointment_id: str = Form(...), mobile:
                 "prescription_date": patient.prescription_date,
                 "prescription_expiry_date": pack["expiry_date"],
             }
+            real_id = patient.appointment_id
             db.close()
             return templates.TemplateResponse(
                 request=request,
@@ -1957,7 +1976,7 @@ def view_prescription(request: Request, appointment_id: str = Form(...), mobile:
                 context=page_ctx(
                     request,
                     patient=patient_data,
-                    appointment_id=appointment_id,
+                    appointment_id=real_id,
                     prescription_pack=json_safe(pack),
                 )
             )
@@ -1965,14 +1984,24 @@ def view_prescription(request: Request, appointment_id: str = Form(...), mobile:
         return templates.TemplateResponse(
             request=request,
             name="my_prescription.html",
-            context=page_ctx(request, message="Prescription has not been added by the doctor yet.")
+            context=page_ctx(
+                request,
+                appointment_id=appointment_id,
+                mobile=mobile,
+                message="Prescription has not been added by the doctor yet."
+            )
         )
 
     db.close()
     return templates.TemplateResponse(
         request=request,
         name="my_prescription.html",
-        context=page_ctx(request, message="Invalid Appointment ID or Mobile Number.")
+        context=page_ctx(
+            request,
+            appointment_id=appointment_id,
+            mobile=mobile,
+            message="Invalid Appointment ID or Mobile Number."
+        )
     )
 
 
@@ -1982,12 +2011,8 @@ async def api_patient_pack(request: Request):
     appointment_id = (payload.get("appointment_id") or "").strip().upper()
     mobile = (payload.get("mobile") or "").strip()
     db = SessionLocal()
-    patient = db.query(Appointment).filter(
-        Appointment.appointment_id == appointment_id,
-        Appointment.mobile == mobile,
-        Appointment.prescription_status == "Saved",
-    ).first()
-    if not patient:
+    patient = find_patient_by_appointment_and_mobile(db, appointment_id, mobile)
+    if not patient or patient.prescription_status != "Saved":
         db.close()
         return JSONResponse({"error": "Not found"}, status_code=404)
     pack = patient_prescription_pack(patient)
