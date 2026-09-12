@@ -1,6 +1,35 @@
 # 🏥 RxVault — Digital Healthcare Consultation & Prescription Management Platform
 
-A secure, offline-capable, multi-channel digital healthcare system built with **FastAPI** (Python), **SQLite**, **Jinja2 templates**, and a **PWA-enabled** frontend with **IndexedDB** offline storage.
+A secure, mobile-friendly, offline-capable, multi-channel digital healthcare platform built with **FastAPI** (Python), **SQLite**, **Jinja2 templates**, and a **PWA-enabled** frontend with **IndexedDB** offline storage, password-protected mobile doctor QR scanning, and instant WhatsApp & SMS prescription delivery.
+
+---
+
+## 🔑 Demo Credentials (Staff, Admins & Doctors)
+
+All accounts are pre-seeded in the database on first startup.
+
+### 🏢 Staff & Admin Credentials
+| Portal | Role | Username | Password | Access / Permissions |
+|--------|------|----------|----------|----------------------|
+| `/staff/login` | **Hospital Reception / Staff** | `STAFF-APOLLO` | `staff123` | Help desk lookup by Appointment ID or Hospital Token, patient verification, print physical Rx copy |
+| `/staff/login` | **Hospital Admin** | `ADMIN-APOLLO` | `admin123` | Hospital management (`/admin/hospital`), manage reception staff, activate/deactivate hospital doctors |
+| `/staff/login` | **System Super Admin** | `SYSADMIN` | `sysadmin123` | System settings (`/admin/system`), QR token TTL config, notification providers, platform audit |
+
+---
+
+### 👨‍⚕️ Doctor Credentials (Portal: `/doctor/login`)
+| Doctor Name | Medical License No. | Password | Hospital | Department |
+|-------------|---------------------|----------|----------|------------|
+| Dr. Rahul Sharma | `MC-10001` | `doctor123` | Apollo Hospital | General Medicine |
+| Dr. Anjali Reddy | `MC-10002` | `doctor123` | KIMS Hospital | General Medicine |
+| Dr. Vikram Rao | `MC-10003` | `doctor123` | Yashoda Hospital | Cardiology |
+| Dr. Sneha Kumar | `MC-10004` | `doctor123` | CARE Hospital | Cardiology |
+| Dr. Priya Sharma | `MC-10005` | `doctor123` | Apollo Hospital | Dermatology |
+| Dr. Kiran Reddy | `MC-10006` | `doctor123` | KIMS Hospital | Dermatology |
+| Dr. Arjun Kumar | `MC-10007` | `doctor123` | Yashoda Hospital | Orthopedics |
+| Dr. Sandeep Rao | `MC-10008` | `doctor123` | CARE Hospital | Orthopedics |
+
+> 🔒 **Doctor QR Pass Unlock:** When scanning an appointment QR pass with a phone camera, the doctor can unlock the consultation screen using either their **Medical License Number** or the attending doctor's password (`doctor123`).
 
 ---
 
@@ -16,11 +45,12 @@ A secure, offline-capable, multi-channel digital healthcare system built with **
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the server
-uvicorn main:app --host 127.0.0.1 --port 8000
+# Run the server (binds to 0.0.0.0 so phones on your Wi-Fi can connect)
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Open your browser at: **http://127.0.0.1:8000/**
+- Open your desktop browser at: **http://127.0.0.1:8000/**
+- Open on mobile phone (same Wi-Fi): `http://<YOUR_LAN_IP>:8000/` (RxVault auto-detects this for generated QR codes).
 
 ---
 
@@ -35,7 +65,7 @@ RXVAULT/
 ├── rxvault.db                   # SQLite database (auto-created on first run)
 │
 ├── static/
-│   ├── style.css                # Global CSS design system
+│   ├── style.css                # Global responsive CSS design system & touch optimizations
 │   ├── manifest.json            # PWA Web App Manifest
 │   ├── sw.js                    # Service Worker (offline caching)
 │   ├── icons/
@@ -49,28 +79,33 @@ RXVAULT/
 │       ├── doctor-offline.js    # Doctor offline mode + QR scanning + sync engine
 │       └── patient-offline.js   # Patient offline prescription caching + expiry check
 │
-└── templates/
-    ├── index.html               # Home page
-    ├── hospitals.html           # Hospital listing
-    ├── hospital.html            # Single hospital & departments
-    ├── doctors.html             # Doctors in a department
-    ├── appointment.html         # Date & slot picker
-    ├── register.html            # Patient registration form
-    ├── confirmation.html        # Booking confirmation
-    ├── payment.html             # Payment page
-    ├── success.html             # Booking success + QR code + Hospital Token
-    ├── doctor_register.html     # Doctor self-registration
-    ├── doctor_login.html        # Doctor login
-    ├── doctor_dashboard.html    # Doctor consultation & prescription workspace
-    ├── prescription_success.html# Prescription issued confirmation
-    ├── my_prescription.html     # Patient prescription lookup form
-    ├── view_prescription.html   # Patient prescription display
-    ├── kiosk.html               # Self-service kiosk (OTP-based)
-    ├── staff_login.html         # Staff / Admin login
-    ├── staff_helpdesk.html      # Reception help desk
-    ├── admin_hospital.html      # Hospital admin panel
-    ├── admin_system.html        # System admin panel
-    └── offline.html             # Offline fallback page (served by Service Worker)
+├── templates/
+│   ├── index.html               # Home page
+│   ├── hospitals.html           # Hospital listing
+│   ├── hospital.html            # Single hospital & departments
+│   ├── doctors.html             # Doctors in a department
+│   ├── appointment.html         # Date & slot picker (mobile touch-friendly)
+│   ├── register.html            # Patient registration form
+│   ├── confirmation.html        # Booking confirmation
+│   ├── payment.html             # Payment page
+│   ├── success.html             # Booking success + Full-screen QR modal + WhatsApp share
+│   ├── doctor_register.html     # Doctor self-registration
+│   ├── doctor_login.html        # Doctor login
+│   ├── doctor_unlock.html       # Scanned QR pass password unlock screen
+│   ├── doctor_consultation.html # Mobile consultation screen + dynamic medicine builder
+│   ├── doctor_dashboard.html    # Doctor consultation & prescription workspace
+│   ├── prescription_success.html# 1-tap WhatsApp, SMS & App delivery buttons
+│   ├── my_prescription.html     # Patient prescription lookup form
+│   ├── view_prescription.html   # Patient prescription display (cards on mobile, table on PC)
+│   ├── kiosk.html               # Self-service kiosk (OTP-based)
+│   ├── staff_login.html         # Staff / Admin login
+│   ├── staff_helpdesk.html      # Reception help desk
+│   ├── admin_hospital.html      # Hospital admin panel
+│   ├── admin_system.html        # System admin panel
+│   └── offline.html             # Offline fallback page (served by Service Worker)
+│
+└── tests/
+    └── test_platform.py         # 14 automated pytest test cases
 ```
 
 ---
@@ -444,25 +479,11 @@ Configured via environment variable `NOTIFICATION_PROVIDER`:
 
 ---
 
-## 👥 Default Login Credentials
-
-> ⚠️ Change all passwords before deploying to production.
-
-| Role | Username / License | Password |
-|------|--------------------|----------|
-| Doctor (Apollo) | `MC-10001` | `doctor123` |
-| Doctor (KIMS) | `MC-10002` | `doctor123` |
-| Doctor (Cardiology) | `MC-10003` | `doctor123` |
-| Reception (Apollo) | `STAFF-APOLLO` | `staff123` |
-| Hospital Admin | `ADMIN-APOLLO` | `admin123` |
-| System Admin | `SYSADMIN` | `sysadmin123` |
-
----
-
 ## ⚙️ Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `PUBLIC_BASE_URL` | Auto-detected LAN IP | Public base URL used in QR codes & WhatsApp links (e.g. `https://rxvault.onrender.com`) |
 | `RXVAULT_SECRET_KEY` | `rxvault_doctor_auth_secret_key_2026` | HMAC secret for password hashing & offline key material |
 | `QR_TOKEN_TTL_HOURS` | `72` | QR pass validity duration in hours |
 | `KIOSK_OTP_MINUTES` | `5` | OTP expiry in minutes |
@@ -471,6 +492,33 @@ Configured via environment variable `NOTIFICATION_PROVIDER`:
 | `NOTIFICATION_WEBHOOK_URL` | — | Webhook URL for SMS/email gateway |
 | `NOTIFICATION_API_KEY` | — | Bearer token for webhook auth |
 | `NOTIFICATION_LOG_FILE` | `./notification_outbox.jsonl` | File path for file provider |
+
+---
+
+## 🧪 Automated Testing
+
+RxVault includes comprehensive test coverage for all features:
+
+```bash
+# Run all 14 automated tests
+python -m pytest tests/ -v
+```
+
+### Verified Test Scenarios:
+1. `test_home_and_pwa_assets`: Verifies landing page, manifest, and service worker.
+2. `test_hospitals_and_departments_still_work`: Verifies hospital/department directory.
+3. `test_doctor_login_required_for_dashboard`: Verifies authentication barriers.
+4. `test_qr_scan_requires_auth`: Verifies QR tokens require login/password.
+5. `test_doctor_login_and_offline_pack`: Tests offline consultation sync API.
+6. `test_appointment_qr_token_is_not_appointment_id`: Verifies cryptographic token separation.
+7. `test_prescription_idempotent_sync_and_expiry`: Verifies offline sync idempotency & auto-expiry.
+8. `test_staff_cannot_open_prescription_with_id_only`: Verifies patient privacy controls.
+9. `test_kiosk_requires_otp_not_guessable_id`: Tests kiosk OTP protection.
+10. `test_unauthorized_api_sync`: Verifies API authentication.
+11. `test_doctor_password_unlocks_scanned_qr`: Verifies QR password unlock workflow.
+12. `test_qr_endpoints_and_base64_data_uri`: Verifies embedded Base64 QR generation and streaming.
+13. `test_scanned_qr_unlock_and_consultation_flow`: Full end-to-end booking -> QR scan -> password unlock -> regimen write -> WhatsApp/SMS dispatch.
+14. `test_mobile_friendly_pass_modal_and_share_elements`: Tests mobile UI components, full screen QR modal & responsive cards.
 
 ---
 

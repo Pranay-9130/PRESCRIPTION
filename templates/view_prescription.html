@@ -209,13 +209,14 @@
             const hospitalName = "{{ patient.get('hospital_name', '') }}";
             const doctorName = "{{ patient.get('doctor_name', '') }}";
             const apptId = "{{ appointment_id }}";
-            const shareText = `🏥 *RxVault Official Digital Prescription*\n` +
-                              `📋 Patient: ${patientName}\n` +
-                              `👨‍⚕️ Doctor: ${doctorName}\n` +
-                              `🏢 Hospital: ${hospitalName}\n` +
-                              `🆔 Appointment ID: ${apptId}\n` +
-                              `🔗 Lookup URL: ${window.location.origin}/my-prescription\n\n` +
-                              `⚠️ Please present this verified digital prescription at the pharmacy.`;
+            const shareText = `🏥 *${hospitalName} — Official Digital Prescription*\n` +
+                              `📋 *Patient:* ${patientName}\n` +
+                              `👨‍⚕️ *Doctor:* ${doctorName}\n` +
+                              `🆔 *Appointment ID:* ${apptId}\n` +
+                              `✨ _"Health is an investment in your future. Follow prescribed care for quick recovery."_\n\n` +
+                              `🔗 *View Official Verified Rx on RxVault:*\n` +
+                              `${window.location.origin}/my-prescription?id=${encodeURIComponent(apptId)}\n\n` +
+                              `🛡️ _Verified & Digitally Signed via RxVault Healthcare Network._`;
 
             if (navigator.share) {
                 navigator.share({

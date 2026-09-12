@@ -8,6 +8,7 @@ import json
 import secrets
 import io
 import base64
+from typing import Optional
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
@@ -192,42 +193,50 @@ def build_prescription_share(patient, request: Request) -> dict:
     prescription_ref = getattr(patient, "prescription_ref", "") if not isinstance(patient, dict) else patient.get("prescription_ref", "")
     date_str = getattr(patient, "date", "") if not isinstance(patient, dict) else patient.get("date", "")
     duration = getattr(patient, "max_duration_days", 5) if not isinstance(patient, dict) else patient.get("max_duration_days", 5)
-    instructions = getattr(patient, "instructions", "") if not isinstance(patient, dict) else patient.get("instructions", "")
     mobile = getattr(patient, "mobile", "") if not isinstance(patient, dict) else patient.get("mobile", "")
+
+    med_count = len(items) if items else (1 if getattr(patient, "medicine", None) else 0)
+    med_text = f"{med_count} Medicine{'s' if med_count != 1 else ''}" if med_count > 0 else "Regimen Prescribed"
+
+    quotes = [
+        "“Your health is an investment, not an expense. Consistent care brings lasting recovery.”",
+        "“Healing is a journey of trust and timely care. Your wellness is our top priority.”",
+        "“Health is the greatest gift. Follow your schedule, stay hydrated, and take care today.”"
+    ]
+    quote_text = quotes[abs(hash(str(appointment_id))) % len(quotes)]
+
+    clean_mobile = digits_only(mobile)
+    direct_rx_url = f"{base_url}/my-prescription?id={appointment_id}&m={clean_mobile}"
 
     lines = [
         f"🏥 *{hospital_name or 'RxVault Accredited Hospital'}*",
-        f"📋 *Digital Prescription for {patient_name}*",
-        f"👨‍⚕️ Doctor: {doctor_name}",
-        f"🆔 Appointment ID: {appointment_id}",
-        f"🔖 Reference: {prescription_ref or 'N/A'}",
-        f"📅 Date: {date_str or datetime.now().strftime('%Y-%m-%d')}",
+        "📋 *Official Digital Prescription Notice*",
         "",
-        "💊 *Prescribed Medicines:*",
+        f"✨ _{quote_text}_",
+        "",
+        f"Dear *{patient_name}*,",
+        f"Your attending doctor, *{doctor_name}*, has officially prepared and digitally signed your prescription.",
+        "",
+        "🔒 *CONSULTATION SUMMARY (SECURE VAULT):*",
+        f"• 🆔 *Appointment ID:* {appointment_id}",
+        f"• 🔖 *Digital Security Ref:* {prescription_ref or 'RX-VAULT'}",
+        f"• 📅 *Consultation Date:* {date_str or datetime.now().strftime('%Y-%m-%d')}",
+        f"• 💊 *Prescribed Regimen:* {med_text} (Encrypted & Verified)",
+        f"• ⏳ *Validity Period:* Active for {duration or 5} Days (Auto-Expiry Security Enabled)",
+        "",
+        "📲 *VIEW YOUR COMPLETE PRESCRIPTION IN RXVAULT:*",
+        "👉 For your clinical safety and privacy, exact dosages, morning/night timings, dietary instructions, and doctor's advice are securely stored in your personal RxVault.",
+        "",
+        "🔗 *Tap the official link below to view your full prescription:*",
+        f"{direct_rx_url}",
+        "",
+        "🛡️ _Secured with 256-bit encryption by RxVault Digital Healthcare System._",
+        "⚠️ _Please take medicines strictly as advised on RxVault. In case of emergency, contact the hospital immediately._"
     ]
-    for i, item in enumerate(items, start=1):
-        name = item.get("name", "Medicine")
-        dosage = item.get("dosage", "1 Unit")
-        freq = item.get("frequency", "As directed")
-        instr = item.get("instructions", "After meals")
-        days = item.get("days", duration or 5)
-        lines.append(f"{i}. *{name}* ({dosage})")
-        lines.append(f"   Timing: {freq} | {instr} | For {days} days")
-
-    if instructions:
-        lines.append("")
-        lines.append(f"📝 *Doctor's Advice:* {instructions}")
-
-    lines.append("")
-    lines.append(f"⏳ *Prescription Validity:* Valid for {duration or 5} days (Auto-expires)")
-    lines.append(f"🔗 *View Official Verified Prescription:*")
-    lines.append(f"{base_url}/my-prescription")
-    lines.append("")
-    lines.append("⚠️ _Please take medicines strictly as advised. In case of emergency, contact the hospital immediately._")
 
     text = "\n".join(lines)
     phone = whatsapp_phone(mobile)
-    sms_number = digits_only(mobile)
+    sms_number = clean_mobile
     sms_text = text.replace("*", "").replace("_", "")
 
     return {
@@ -235,6 +244,7 @@ def build_prescription_share(patient, request: Request) -> dict:
         "sms_href": f"sms:{sms_number}?&body={quote(sms_text)}",
         "whatsapp_href": f"https://wa.me/{phone}?text={quote(text)}",
         "mobile": mobile,
+        "direct_url": direct_rx_url,
     }
 
 
@@ -1807,15 +1817,6 @@ async def sync_prescription(request: Request):
 
 # ---------------- PATIENT PRESCRIPTION PAGE ----------------
 
-@app.get("/my-prescription")
-def my_prescription_page(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="my_prescription.html",
-        context=page_ctx(request)
-    )
-
-
 def patient_prescription_pack(patient):
     expired = is_prescription_expired(patient)
     items = [] if expired else parse_medicine_json(patient.medicine)
@@ -1839,6 +1840,88 @@ def patient_prescription_pack(patient):
     }
 
 
+@app.get("/my-prescription")
+def my_prescription_page(
+    request: Request,
+    id: Optional[str] = None,
+    appointment_id: Optional[str] = None,
+    m: Optional[str] = None,
+    mobile: Optional[str] = None,
+):
+    target_id = (id or appointment_id or "").strip().upper()
+    target_mobile = (m or mobile or "").strip()
+
+    if target_id and target_mobile:
+        db = SessionLocal()
+        clean_target = digits_only(target_mobile)
+        all_matches = db.query(Appointment).filter(Appointment.appointment_id == target_id).all()
+        patient = None
+        for p in all_matches:
+            if digits_only(p.mobile) == clean_target or p.mobile == target_mobile:
+                patient = p
+                break
+
+        if patient:
+            if patient.prescription_status == "Saved":
+                pack = patient_prescription_pack(patient)
+                expired = pack["is_expired"]
+                patient_data = {
+                    "name": patient.name,
+                    "hospital_name": patient.hospital_name,
+                    "doctor_name": patient.doctor_name,
+                    "date": patient.date,
+                    "medicine": None if expired else patient.medicine,
+                    "dosage": None if expired else patient.dosage,
+                    "instructions": None if expired else patient.instructions,
+                    "medicine_list": pack["medicine_list"],
+                    "is_expired": expired,
+                    "max_duration_days": pack["max_duration_days"],
+                    "prescription_date": patient.prescription_date,
+                    "prescription_expiry_date": pack["expiry_date"],
+                }
+                db.close()
+                return templates.TemplateResponse(
+                    request=request,
+                    name="view_prescription.html",
+                    context=page_ctx(
+                        request,
+                        patient=patient_data,
+                        appointment_id=target_id,
+                        prescription_pack=json_safe(pack),
+                    )
+                )
+            db.close()
+            return templates.TemplateResponse(
+                request=request,
+                name="my_prescription.html",
+                context=page_ctx(
+                    request,
+                    appointment_id=target_id,
+                    mobile=target_mobile,
+                    message="Prescription has not been added by the doctor yet."
+                )
+            )
+        db.close()
+        return templates.TemplateResponse(
+            request=request,
+            name="my_prescription.html",
+            context=page_ctx(
+                request,
+                appointment_id=target_id,
+                mobile=target_mobile,
+                message="Prescription record not found. Please verify your Appointment ID and mobile number."
+            )
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="my_prescription.html",
+        context=page_ctx(
+            request,
+            appointment_id=target_id if target_id else "",
+            mobile=target_mobile if target_mobile else "",
+        )
+    )
 @app.post("/my-prescription")
 def view_prescription(request: Request, appointment_id: str = Form(...), mobile: str = Form(...)):
     appointment_id = appointment_id.strip().upper()

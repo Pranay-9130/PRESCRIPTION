@@ -366,3 +366,59 @@ def test_mobile_friendly_pass_modal_and_share_elements():
     assert "Share Pass on WhatsApp" in booking.text
     assert "Copy Doctor Pass Link" in booking.text
 
+
+def test_direct_one_tap_whatsapp_link_opens_prescription():
+    # 1. Book an appointment
+    booking = client.post(
+        "/payment-success",
+        data={
+            "name": "Sanvika Patient",
+            "gender": "Female",
+            "mobile": "9848012345",
+            "problem": "Fever & Weakness",
+            "hospital_id": 1,
+            "department": "General Medicine",
+            "doctor_id": 1,
+            "date": "2026-09-13",
+            "slot": "10:30 AM",
+            "amount": 500,
+        },
+    )
+    assert booking.status_code == 200
+    db = SessionLocal()
+    appt = db.query(Appointment).filter(Appointment.mobile == "9848012345").order_by(Appointment.id.desc()).first()
+    appt_id = appt.appointment_id
+    db.close()
+
+    # 2. Doctor prescribes
+    mobile_client = TestClient(app)
+    mobile_client.post(
+        "/doctor/login",
+        data={"medical_number": "MC-10001", "password": "doctor123"},
+        follow_redirects=True,
+    )
+    save_rx = mobile_client.post(
+        "/doctor/prescription",
+        data={
+            "appointment_id": appt_id,
+            "medicine_name": ["B-Complex 30 Capsules"],
+            "dosage": ["1 Capsule"],
+            "frequency": ["1-0-1 (Twice daily)"],
+            "usage_instructions": ["After meals"],
+            "duration_days": ["5"],
+            "instructions": "Drink plenty of water and rest well.",
+        },
+    )
+    assert save_rx.status_code == 200
+
+    # 3. Verify direct WhatsApp link was constructed
+    assert f"my-prescription?id={appt_id}&amp;m=9848012345" in save_rx.text
+
+    # 4. Patient opens the direct WhatsApp link (1-tap GET request)
+    direct_view = client.get(f"/my-prescription?id={appt_id}&m=9848012345")
+    assert direct_view.status_code == 200
+    assert "Sanvika Patient" in direct_view.text
+    assert "B-Complex 30 Capsules" in direct_view.text
+    assert "Official Digital Prescription Document" in direct_view.text
+
+
